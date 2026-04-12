@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Change a point color</title>
+  </head>
+
+  <body onload="main()">
+    <canvas id="webgl" width="600" height="600">
+    Please use a browser that supports "canvas"
+    </canvas>
+
+    <p>
+      <button type="button" id="b_clear">Clear Canvas</button>
+    </p>
+
+    <p style="font-weight: bold; font-size: 14px;"> 
+      <label>Brush Sliders</label>
+    </p>
+  
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Size</label>
+      <input type="range" min="5" max="40" value="10" class="slider" id="s_size">
+    </div>
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Red</label>
+      <input type="range" min="0" max="100" value="100" class="slider" id="s_red">
+    </div>
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Green</label>
+      <input type="range" min="0" max="100" value="100" class="slider" id="s_green">
+    </div>
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Blue</label>
+      <input type="range" min="0" max="100" value="100" class="slider" id="s_blue">
+    </div>
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Circle Segments</label>
+      <input type="range" min="6" max="50" value="10" class="slider" id="s_segments">
+    </div>
+
+    <p style="font-weight: bold; font-size: 14px;"> 
+      <label>Color Presets</label>
+    </p>
+
+    <p>
+      <button type="button" id="b_red">Red</button>
+      <button type="button" id="b_green">Green</button>
+      <button type="button" id="b_blue">Blue</button>
+      <button type="button" id="b_erase">Erase</button>
+    </p>
+
+    <p style="font-weight: bold; font-size: 14px;"> 
+      <label>Brush Shapes</label>
+    </p>
+    <p>
+      <button type="button" id="b_point">Point</button>
+      <button type="button" id="b_triangle">Triangle</button>
+      <button type="button" id="b_circle">Circle</button>
+    </p>
+
+    <p style="font-weight: bold; font-size: 14px;"> 
+      <label>Performance Stats</label>
+    </p>
+
+    <p id="p_performance"> No Performance Stats to Display. </p>
+
+    <script src="lib/webgl-utils.js"></script>
+    <script src="lib/webgl-debug.js"></script>
+    <script src="lib/cuon-utils.js"></script>
+    <script src="Points.js"></script>
+    <script src="Triangle.js"></script>
+    <script src="Circle.js"></script>
+    <script src="ColoredPoints.js"></script>
+  </body>
+</html>
