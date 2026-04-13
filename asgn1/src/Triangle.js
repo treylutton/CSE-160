@@ -18,8 +18,12 @@ class Triangle {
         gl.uniform1f(u_Size, size);
 
         // Draw
-        var d = this.size/200.0;    // delta
-        drawTriangle( [ xy[0], xy[1],    xy[0]+d, xy[1],    xy[0], xy[1]+d ] )
+        if (xy.length == 6) {
+            drawTriangle(xy);   // this adds ability to set position equal to exact vertices
+        } else {
+            var d = this.size/200.0;    // delta
+            drawTriangle( [ xy[0], xy[1],    xy[0]+d, xy[1],    xy[0], xy[1]+d ] )
+        }
     }
 }
 

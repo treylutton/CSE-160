@@ -2,16 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Change a point color</title>
+    <title>Lutton Assignment 1</title>
   </head>
 
   <body onload="main()">
+    <div>
+      <h1>Assignment 1</h1>
+      <p>Trey Lutton | tlutton@ucsc.edu | CSE160 - Spring 2026</p>
+    </div>
     <canvas id="webgl" width="600" height="600">
     Please use a browser that supports "canvas"
     </canvas>
 
     <p>
       <button type="button" id="b_clear">Clear Canvas</button>
+      <button type="button" id="b_draw">Draw Picture</button>
+      <button type="button" id="b_setclearcolor">Set Canvas Color</button>
     </p>
 
     <p style="font-weight: bold; font-size: 14px;"> 
@@ -65,12 +71,26 @@
 
     <p id="p_performance"> No Performance Stats to Display. </p>
 
-    <script src="lib/webgl-utils.js"></script>
-    <script src="lib/webgl-debug.js"></script>
-    <script src="lib/cuon-utils.js"></script>
+    <p style="font-weight: bold; font-size: 14px;"> 
+      <label>Reference Image</label>
+    </p>
+
+    <img src="../REF_IMG.jpg" alt="Failed to load image." width="400px" height="400px">
+
+    <p style="font-weight: bold; font-size: 14px;"> 
+      <label>Improvements</label>
+    </p>
+
+    <p>
+      Added eraser. Improved sliders to self-update when selecting a color preset. Added button to set canvas color.
+    </p>
+
+    <script src="../lib/webgl-utils.js"></script>
+    <script src="../lib/webgl-debug.js"></script>
+    <script src="../lib/cuon-utils.js"></script>
     <script src="Points.js"></script>
     <script src="Triangle.js"></script>
     <script src="Circle.js"></script>
-    <script src="ColoredPoints.js"></script>
+    <script src="asg1.js"></script>
   </body>
 </html>
