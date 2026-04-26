@@ -110,6 +110,7 @@ let g_time;
 let g_poke_anim_on = false;
 let g_poke_anim_start = 0;
 let g_poke_anim_duration = 1000;
+let g_last_frame_time = 0;
 
 function init_html_ui_elements() {
   // slider events 
@@ -206,13 +207,11 @@ function main() {
 // Called by browser repeatedly
 function tick() { 
   var start_time = performance.now();
-  g_time = performance.now();     // update g_time
-  render_all_shapes();            // draw everything
-  requestAnimationFrame(tick);    // tell the browser to call again
-  // get the total duration & display
-  var duration = performance.now() - start_time;
+  var duration = start_time - g_time; // get duration
+  g_time = start_time;                // update g_time
+  render_all_shapes();                // draw everything
   text_to_html("ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration), 'p_performance');
-
+  requestAnimationFrame(tick);    // tell the browser to call again
 }
 
 var g_shape_list = [];
