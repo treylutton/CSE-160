@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Lutton Assignment 2</title>
+  </head>
+
+  <body onload="main()" style="background-color: #2a2a2a; color: white; font-family: Verdana, sans-serif;">
+    <div>
+      <h1>Assignment 2 - Blox</h1>
+      <p>Trey Lutton | tlutton@ucsc.edu | CSE160 - Spring 2026</p>
+    </div>
+    <canvas id="webgl" width="600" height="600">
+    Please use a browser that supports "canvas"
+    </canvas>
+
+    <div>
+      <button type="button" id="b_anim_tog" style="background-color: #888;">Animation: OFF</button>
+    </div>
+
+    <p style="font-weight: bold; font-size: 16px;"> 
+      <label>Camera Control Sliders</label>
+    </p>
+  
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Camera Angle</label>
+      <input type="range" min="0" max="720" value="320" class="slider" id="s_cam_angle">
+    </div>
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Scene Size</label>
+      <input type="range" min="0" max="100" value="50" class="slider" id="s_scene_size">
+    </div>
+
+  <p style="font-weight: bold; font-size: 16px;"> 
+      <label>Joint Sliders</label>
+    </p>
+
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Right Shoulder</label>
+      <input type="range" min="-20" max="20" value="0" class="slider" id="s_joint_l_sh">
+    </div>
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Front Right Knee</label>
+      <input type="range" min="-20" max="20" value="0" class="slider" id="s_joint_fl_kn">
+    </div>
+    <p></p>
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Left Shoulder</label>
+      <input type="range" min="-20" max="20" value="0" class="slider" id="s_joint_r_sh">
+    </div>
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Front Left Knee</label>
+      <input type="range" min="-20" max="20" value="0" class="slider" id="s_joint_fr_kn">
+    </div>
+    <p></p>
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Right Hip</label>
+      <input type="range" min="-20" max="20" value="0" class="slider" id="s_joint_l_hi">
+    </div>
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Rear Right Knee</label>
+      <input type="range" min="-20" max="20" value="0" class="slider" id="s_joint_rl_kn">
+    </div>
+    <p></p>
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Left Hip</label>
+      <input type="range" min="-20" max="20" value="0" class="slider" id="s_joint_r_hi">
+    </div>
+    <div style="display: inline-flex; flex-direction: column; align-items: center;">
+      <label>Rear Left Knee</label>
+      <input type="range" min="-20" max="20" value="0" class="slider" id="s_joint_rr_kn">
+    </div>
+
+
+    <p style="font-weight: bold; font-size: 16px;"> 
+      <label>Performance Stats</label>
+    </p>
+
+    <p id="p_performance"> No Performance Stats to Display. </p>
+
+    <p style="font-weight: bold; font-size: 16px;"> 
+      <label>Notes for grader</label>
+    </p>
+
+    <p>
+      TODO: add notes
+    </p>
+
+    <script src="../lib/webgl-utils.js"></script>
+    <script src="../lib/webgl-debug.js"></script>
+    <script src="../lib/cuon-utils.js"></script>
+    <script src="../lib/cuon-matrix.js"></script>
+    <script src="Points.js"></script>
+    <script src="Triangle.js"></script>
+    <script src="Circle.js"></script>
+    <script src="Cube.js"></script>
+    <script src="asg2.js"></script>
+  </body>
+</html>
