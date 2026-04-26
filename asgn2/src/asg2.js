@@ -83,7 +83,11 @@ function init_shaders() {
 
 // Global Variables - UI
 let g_selectedColor=[1.0,1.0,1.0,1.0];   // default to white
-let g_selectedCameraAngle=320;           // default to no rotation
+let g_selectedCameraAngleY=320;          // default to 320 deg
+let g_selectedCameraAngleX=0;            // default to no rotation
+let g_mouseClicked=false;                // default to not clicked
+let g_lastMouseX=0;
+let g_lastMouseY=0;
 let g_canvasColor=[0.0,0.0,0.0,1.0];     // default to black
 let g_selectedScale=0.5;                 // default to 1/2 scale
 let g_selectedJoint_L_SH= 0;             // default to no rotation
@@ -102,7 +106,8 @@ let g_selectedJoint_neck =0;
 
 function init_html_ui_elements() {
   // slider events 
-  document.getElementById('s_cam_angle').addEventListener('input', function() { g_selectedCameraAngle = this.value; render_all_shapes(); });
+  document.getElementById('s_cam_tilt').addEventListener('input', function() { g_selectedCameraAngleX = this.value; render_all_shapes(); });
+  document.getElementById('s_cam_angle').addEventListener('input', function() { g_selectedCameraAngleY = this.value; render_all_shapes(); });
   document.getElementById('s_scene_size').addEventListener('input', function() { g_selectedScale = this.value / 100.0; render_all_shapes(); });
   document.getElementById('s_joint_l_sh').addEventListener('input', function() { g_selectedJoint_L_SH = this.value; render_all_shapes(); });
   document.getElementById('s_joint_fl_kn').addEventListener('input', function() { g_selectedJoint_FL_KN = this.value; render_all_shapes(); });
@@ -117,6 +122,7 @@ function init_html_ui_elements() {
   document.getElementById('s_joint_r_hi').addEventListener('input', function() { g_selectedJoint_R_HI = this.value; render_all_shapes(); });
   document.getElementById('s_joint_rr_kn').addEventListener('input', function() { g_selectedJoint_RR_KN = this.value; render_all_shapes(); });
   document.getElementById('s_joint_neck').addEventListener('input', function() { g_selectedJoint_neck = this.value; render_all_shapes(); });
+  
   // button events
   document.getElementById('b_anim_tog').onclick = function() {
     g_walk_anim_on = !g_walk_anim_on;
@@ -129,6 +135,37 @@ function init_html_ui_elements() {
       this.textContent = 'Animation: OFF';
     }
   }
+
+  // mouse events
+  canvas.onmousedown = function(ev) {       // on click on canvas
+    g_mouseClicked = true;                  // record the click
+    var [y,x] = convert_coordinates_ev_to_gl(ev);
+    g_lastMouseX = x;
+    g_lastMouseY = y;
+  }
+  canvas.onmouseup = function() {           // stop rotating when click released
+    g_mouseClicked = false;
+  }
+  canvas.onmouseleave = function() {        // stop rotating when cursor leaves canvas
+    g_mouseClicked = false;
+  }
+  canvas.onmousemove = function(ev) {
+    if (!g_mouseClicked) return;
+
+    var [y, x] = convert_coordinates_ev_to_gl(ev);
+
+    var delta_X = x - g_lastMouseX;
+    var delta_Y = y - g_lastMouseY;
+
+    g_selectedCameraAngleY = parseFloat(g_selectedCameraAngleY) - delta_Y * 100;
+    g_selectedCameraAngleX = parseFloat(g_selectedCameraAngleX) + delta_X * 100;
+
+    document.getElementById('s_cam_tilt').value = g_selectedCameraAngleX;
+    document.getElementById('s_cam_angle').value = g_selectedCameraAngleY;
+    g_lastMouseX = x;
+    g_lastMouseY = y;
+  }
+
 }
 
 // animation globals
@@ -157,9 +194,14 @@ function main() {
 
 // Called by browser repeatedly
 function tick() { 
+  var start_time = performance.now();
   g_time = performance.now();     // update g_time
   render_all_shapes();            // draw everything
   requestAnimationFrame(tick);    // tell the browser to call again
+  // get the total duration & display
+  var duration = performance.now() - start_time;
+  text_to_html("ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration), 'p_performance');
+
 }
 
 var g_shape_list = [];
@@ -179,16 +221,16 @@ function convert_coordinates_ev_to_gl(ev) {
 // colors definitions (global)
 let c_body = [0.41, 0.33, 0.27, 1.0];
 let c_hoof = [0.2, 0.2, 0.2, 1.0];
+let c_horn = [.8,.8,.8,1];
 
 function render_all_shapes() {
-  // record start time
-  var start_time = performance.now();
-
   // Clear <canvas>
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // pass u_GlobalRotateMatrix to shader
-  var globalRotMat = new Matrix4().rotate(g_selectedCameraAngle, 0, 1, 0).scale(g_selectedScale, g_selectedScale, g_selectedScale);
+  var globalRotMat = new Matrix4().rotate(g_selectedCameraAngleY, 0, 1, 0)
+                                  .rotate(g_selectedCameraAngleX,1,0,0)
+                                  .scale(g_selectedScale, g_selectedScale, g_selectedScale);
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMat.elements);
 
   // DRAW THE OX
@@ -228,10 +270,6 @@ function render_all_shapes() {
     // draw head
     draw_head(-.2,.1,-.2, g_selectedJoint_neck);
   }
-
-  // get the total duration & display
-  var duration = performance.now() - start_time;
-  text_to_html("ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration), 'p_performance');
 }
 
 function draw_head(anc_x, anc_y, anc_z, joint_angle_neck) {
@@ -270,14 +308,14 @@ function draw_head(anc_x, anc_y, anc_z, joint_angle_neck) {
 
   // horns
   var horn_ll = new Cube();
-  horn_ll.color = [1,1,1,1];
+  horn_ll.color = c_horn;
   horn_ll.matrix = new Matrix4(head_matrix);
   horn_ll.matrix.translate(0.05,1.3,0);
   var horn_ll_matrix = new Matrix4(horn_ll.matrix);
   horn_ll.matrix.scale(-.3, .3, .3);
   horn_ll.render();
   var horn_lr = new Cube();
-  horn_lr.color = [1,1,1,1];
+  horn_lr.color = c_horn;
   horn_lr.matrix = new Matrix4(head_matrix);
   horn_lr.matrix.translate(1.25,1.3,0);
   var horn_lr_matrix = new Matrix4(horn_lr.matrix);
@@ -286,14 +324,14 @@ function draw_head(anc_x, anc_y, anc_z, joint_angle_neck) {
 
   // upper horn pyramids
   var horn_ul = new Pyramid();
-  horn_ul.color = [1,1,1,1];
+  horn_ul.color = c_horn;
   horn_ul.matrix = horn_ll_matrix;
   horn_ul.matrix.translate(-.3,0.3,0.3);
   horn_ul.matrix.rotate(-90,1,0,0);
   horn_ul.matrix.scale(.15,.3,1);
   horn_ul.render();
   var horn_ur = new Pyramid();
-  horn_ur.color = [1,1,1,1];
+  horn_ur.color = c_horn;
   horn_ur.matrix = horn_lr_matrix;
   horn_ur.matrix.translate(-0.15,0.3,0.3);
   horn_ur.matrix.rotate(-90,1,0,0);
