@@ -84,7 +84,7 @@ function init_shaders() {
 // Global Variables - UI
 let g_selectedColor=[1.0,1.0,1.0,1.0];   // default to white
 let g_selectedCameraAngleY=320;          // default to 320 deg
-let g_selectedCameraAngleX=0;            // default to no rotation
+let g_selectedCameraAngleX=360;          // default to no rotation (one full rotation so slider starts centered)
 let g_mouseClicked=false;                // default to not clicked
 let g_lastMouseX=0;
 let g_lastMouseY=0;
@@ -103,6 +103,13 @@ let g_selectedJoint_FR_AN=0;
 let g_selectedJoint_RL_AN=0;
 let g_selectedJoint_RR_AN=0;
 let g_selectedJoint_neck =0;
+
+// Global Variables - Animation
+let g_walk_anim_on = false;
+let g_time;
+let g_poke_anim_on = false;
+let g_poke_anim_start = 0;
+let g_poke_anim_duration = 1000;
 
 function init_html_ui_elements() {
   // slider events 
@@ -136,8 +143,17 @@ function init_html_ui_elements() {
     }
   }
 
+  // dont open the browsers default rightlick menu
+  canvas.oncontextmenu = function(ev) { ev.preventDefault();};
+
   // mouse events
   canvas.onmousedown = function(ev) {       // on click on canvas
+    if (ev.button == 2 && ev.shiftKey) {
+      g_poke_anim_on = true;
+      g_poke_anim_start = performance.now();
+      return;
+    }
+
     g_mouseClicked = true;                  // record the click
     var [y,x] = convert_coordinates_ev_to_gl(ev);
     g_lastMouseX = x;
@@ -167,11 +183,6 @@ function init_html_ui_elements() {
   }
 
 }
-
-// animation globals
-let g_walk_anim_on = false;
-let g_time;
-
 
 // MAIN FUNCTION
 function main() {
@@ -241,8 +252,30 @@ function render_all_shapes() {
   body.matrix.scale(0.7, 0.6, 1.2);
   body.render();
 
-  // legs
-  if (g_walk_anim_on) { // if animation enabled, random angles from pi offset by deltas
+  // legs and head
+  if (g_poke_anim_on) {
+    var time = (performance.now() - g_poke_anim_start) / g_poke_anim_duration;
+
+    if (time >= 1.0) {
+
+      g_poke_anim_on = false;
+
+    } else {
+
+    var bow_depth = Math.sin(time * Math.PI);   // 0 -> 1 -> 0 over the duration => bow up and down
+    var sh = -45 * bow_depth;                   // shoulders bow back 0 -> -45 degrees
+    var kn = 30 * bow_depth;                    // knees bend forward 0 -> 30 degrees
+    var neck = -30 * bow_depth;                 // head bows down 0 -> -30 degrees
+    
+    draw_leg(-0.4, -0.35, -0.05, sh, kn, 0, true, false);     
+    draw_leg( 0.4, -0.35, -0.05, sh, kn, 0, false, false);
+    draw_leg(-0.4, -0.35, 0.75, 0, 0, 0, true, true);           // back legs dont move
+    draw_leg( 0.4, -0.35, 0.75, 0, 0, 0, false, true);          // ^
+    draw_head(-0.2, 0.1, -0.2, neck,true);
+
+    return; // skip the rest if we drew the poke anim this frame
+    }
+  } if (g_walk_anim_on) { // if animation enabled, random angles from pi offset by deltas
 
     // choose deltas and get angles from time
     var d_upper = 0;
@@ -258,7 +291,7 @@ function render_all_shapes() {
     draw_leg(.4,-.35, .75, shoulder_angle + d_upper, knee_angle + d_lower, ankle_angle, false, true);        // back right
 
     // draw head
-    draw_head(-.2,.1,-.2, shoulder_angle / 2.0);
+    draw_head(-.2,.1,-.2, shoulder_angle / 2.0,false);
   } else {              // otherwise angles come from sliders
 
     // draw legs
@@ -268,17 +301,21 @@ function render_all_shapes() {
     draw_leg(.4,-.35, .75, g_selectedJoint_R_HI, g_selectedJoint_RR_KN, g_selectedJoint_RR_AN, false, true);             // front right
     
     // draw head
-    draw_head(-.2,.1,-.2, g_selectedJoint_neck);
+    draw_head(-.2,.1,-.2, g_selectedJoint_neck,false);
   }
 }
 
-function draw_head(anc_x, anc_y, anc_z, joint_angle_neck) {
+function draw_head(anc_x, anc_y, anc_z, joint_angle_neck, axis_x) {
   // head
   var head = new Cube();
   head.color = c_body;
   head.matrix.translate(anc_x, anc_y, anc_z);
   head.matrix.translate(.2,0,.4);
-  head.matrix.rotate(joint_angle_neck, 0,1,0);
+  if (!axis_x) {
+    head.matrix.rotate(joint_angle_neck, 0,1,0);
+  } else {
+    head.matrix.rotate(joint_angle_neck, 1,0,0);
+  }
   head.matrix.translate(-.2,0,-.4);
   var head_matrix = new Matrix4(head.matrix);
   head.matrix.scale(.4,.4,.4);
