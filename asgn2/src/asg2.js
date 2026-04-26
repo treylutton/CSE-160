@@ -94,6 +94,11 @@ let g_selectedJoint_L_HI= 0;
 let g_selectedJoint_RL_KN=0;
 let g_selectedJoint_R_HI= 0;
 let g_selectedJoint_RR_KN=0;
+let g_selectedJoint_FL_AN=0;
+let g_selectedJoint_FR_AN=0;
+let g_selectedJoint_RL_AN=0;
+let g_selectedJoint_RR_AN=0;
+let g_selectedJoint_neck =0;
 
 function init_html_ui_elements() {
   // slider events 
@@ -101,13 +106,17 @@ function init_html_ui_elements() {
   document.getElementById('s_scene_size').addEventListener('input', function() { g_selectedScale = this.value / 100.0; render_all_shapes(); });
   document.getElementById('s_joint_l_sh').addEventListener('input', function() { g_selectedJoint_L_SH = this.value; render_all_shapes(); });
   document.getElementById('s_joint_fl_kn').addEventListener('input', function() { g_selectedJoint_FL_KN = this.value; render_all_shapes(); });
+  document.getElementById('s_joint_fl_an').addEventListener('input', function() { g_selectedJoint_FL_AN = this.value; render_all_shapes(); });
+  document.getElementById('s_joint_fr_an').addEventListener('input', function() { g_selectedJoint_FR_AN = this.value; render_all_shapes(); });
+  document.getElementById('s_joint_rl_an').addEventListener('input', function() { g_selectedJoint_RL_AN = this.value; render_all_shapes(); });
+  document.getElementById('s_joint_rr_an').addEventListener('input', function() { g_selectedJoint_RR_AN = this.value; render_all_shapes(); });
   document.getElementById('s_joint_r_sh').addEventListener('input', function() { g_selectedJoint_R_SH = this.value; render_all_shapes(); });
   document.getElementById('s_joint_fr_kn').addEventListener('input', function() { g_selectedJoint_FR_KN = this.value; render_all_shapes(); });
   document.getElementById('s_joint_l_hi').addEventListener('input', function() { g_selectedJoint_L_HI = this.value; render_all_shapes(); });
   document.getElementById('s_joint_rl_kn').addEventListener('input', function() { g_selectedJoint_RL_KN = this.value; render_all_shapes(); });
   document.getElementById('s_joint_r_hi').addEventListener('input', function() { g_selectedJoint_R_HI = this.value; render_all_shapes(); });
   document.getElementById('s_joint_rr_kn').addEventListener('input', function() { g_selectedJoint_RR_KN = this.value; render_all_shapes(); });
-
+  document.getElementById('s_joint_neck').addEventListener('input', function() { g_selectedJoint_neck = this.value; render_all_shapes(); });
   // button events
   document.getElementById('b_anim_tog').onclick = function() {
     g_walk_anim_on = !g_walk_anim_on;
@@ -198,20 +207,26 @@ function render_all_shapes() {
     var d_lower = -20;
     var shoulder_angle = 20*Math.sin(g_time / 300);
     var knee_angle = -shoulder_angle;
+    var ankle_angle = 0;
 
     // draw legs
-    draw_leg(-0.4, -0.35, -0.05, shoulder_angle + d_upper, knee_angle + d_lower, true, false);  // front left
-    draw_leg(.4, -0.35, -0.05, -shoulder_angle + d_upper, -knee_angle + d_lower, false, false); // front right
-    draw_leg(-0.4, -.35, .75, -shoulder_angle + d_upper, -knee_angle + d_lower, true, true);    // back left
-    draw_leg(.4,-.35, .75, shoulder_angle + d_upper, knee_angle + d_lower, false, true);        // back right
+    draw_leg(-0.4, -0.35, -0.05, shoulder_angle + d_upper, knee_angle + d_lower, ankle_angle, true, false);  // front left
+    draw_leg(.4, -0.35, -0.05, -shoulder_angle + d_upper, -knee_angle + d_lower, ankle_angle, false, false); // front right
+    draw_leg(-0.4, -.35, .75, -shoulder_angle + d_upper, -knee_angle + d_lower, ankle_angle, true, true);    // back left
+    draw_leg(.4,-.35, .75, shoulder_angle + d_upper, knee_angle + d_lower, ankle_angle, false, true);        // back right
 
+    // draw head
+    draw_head(-.2,.1,-.2, shoulder_angle / 2.0);
   } else {              // otherwise angles come from sliders
 
     // draw legs
-    draw_leg(-0.4, - 0.35, -0.05, g_selectedJoint_L_SH, g_selectedJoint_FL_KN, true, false);      // front left
-    draw_leg(.4, -0.35, -0.05, g_selectedJoint_R_SH, g_selectedJoint_FR_KN, false, false);        // front right
-    draw_leg(-0.4, -.35, .75, g_selectedJoint_L_HI, g_selectedJoint_RL_KN, true, true);           // back left
-    draw_leg(.4,-.35, .75, g_selectedJoint_R_HI, g_selectedJoint_RR_KN, false, true);             // front right
+    draw_leg(-0.4, - 0.35, -0.05, g_selectedJoint_L_SH, g_selectedJoint_FL_KN, g_selectedJoint_FL_AN, true, false);      // front left
+    draw_leg(.4, -0.35, -0.05, g_selectedJoint_R_SH, g_selectedJoint_FR_KN, g_selectedJoint_FR_AN, false, false);        // front right
+    draw_leg(-0.4, -.35, .75, g_selectedJoint_L_HI, g_selectedJoint_RL_KN, g_selectedJoint_RL_AN, true, true);           // back left
+    draw_leg(.4,-.35, .75, g_selectedJoint_R_HI, g_selectedJoint_RR_KN, g_selectedJoint_RR_AN, false, true);             // front right
+    
+    // draw head
+    draw_head(-.2,.1,-.2, g_selectedJoint_neck);
   }
 
   // get the total duration & display
@@ -219,7 +234,74 @@ function render_all_shapes() {
   text_to_html("ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration), 'p_performance');
 }
 
-function draw_leg(anc_x, anc_y, anc_z, joint_angle_sh, joint_angle_kn, left_side, rear_leg) {
+function draw_head(anc_x, anc_y, anc_z, joint_angle_neck) {
+  // head
+  var head = new Cube();
+  head.color = c_body;
+  head.matrix.translate(anc_x, anc_y, anc_z);
+  head.matrix.translate(.2,0,.4);
+  head.matrix.rotate(joint_angle_neck, 0,1,0);
+  head.matrix.translate(-.2,0,-.4);
+  var head_matrix = new Matrix4(head.matrix);
+  head.matrix.scale(.4,.4,.4);
+  head.render();
+
+  // nose/snout
+  var nose = new Cube();
+  nose.color = c_body; 
+  nose.matrix = head_matrix;
+  nose.matrix.translate(-.025,0,.1);
+  nose.matrix.scale(.45,.2,-.2);
+  nose.render();
+
+  // eyes
+  var eye_l = new Cube();
+  eye_l.color = [0,0,0,1];
+  eye_l.matrix = new Matrix4(head_matrix);
+  eye_l.matrix.translate(0.0999, 1.3 ,0.32);
+  eye_l.matrix.scale(.2,.2,.2);
+  eye_l.render();
+  var eye_r = new Cube();
+  eye_r.color = [0,0,0,1];
+  eye_r.matrix = new Matrix4(head_matrix);
+  eye_r.matrix.translate(0.7001, 1.3 ,0.32);
+  eye_r.matrix.scale(.2,.2,.2);
+  eye_r.render();
+
+  // horns
+  var horn_ll = new Cube();
+  horn_ll.color = [1,1,1,1];
+  horn_ll.matrix = new Matrix4(head_matrix);
+  horn_ll.matrix.translate(0.05,1.3,0);
+  var horn_ll_matrix = new Matrix4(horn_ll.matrix);
+  horn_ll.matrix.scale(-.3, .3, .3);
+  horn_ll.render();
+  var horn_lr = new Cube();
+  horn_lr.color = [1,1,1,1];
+  horn_lr.matrix = new Matrix4(head_matrix);
+  horn_lr.matrix.translate(1.25,1.3,0);
+  var horn_lr_matrix = new Matrix4(horn_lr.matrix);
+  horn_lr.matrix.scale(-.3, .3, .3);
+  horn_lr.render();
+
+  // upper horn pyramids
+  var horn_ul = new Pyramid();
+  horn_ul.color = [1,1,1,1];
+  horn_ul.matrix = horn_ll_matrix;
+  horn_ul.matrix.translate(-.3,0.3,0.3);
+  horn_ul.matrix.rotate(-90,1,0,0);
+  horn_ul.matrix.scale(.15,.3,1);
+  horn_ul.render();
+  var horn_ur = new Pyramid();
+  horn_ur.color = [1,1,1,1];
+  horn_ur.matrix = horn_lr_matrix;
+  horn_ur.matrix.translate(-0.15,0.3,0.3);
+  horn_ur.matrix.rotate(-90,1,0,0);
+  horn_ur.matrix.scale(.15,.3,1);
+  horn_ur.render();
+}
+
+function draw_leg(anc_x, anc_y, anc_z, joint_angle_sh, joint_angle_kn, joint_angle_an, left_side, rear_leg) {
   // draw the shoulder (or hip)
   var shoulder = new Cube();
   shoulder.color = c_body;                                    // set the color
@@ -272,6 +354,9 @@ function draw_leg(anc_x, anc_y, anc_z, joint_angle_sh, joint_angle_kn, left_side
   hoof.color = c_hoof;
   hoof.matrix = lower_leg_matrix;                             // rebase coordinates relative to lower leg
   hoof.matrix.translate(0, -.1,0);                            // move to final pos
+  hoof.matrix.translate(0,.1,0);
+  hoof.matrix.rotate(joint_angle_an,1,0,0);
+  hoof.matrix.translate(0,-.1,0);
   hoof.matrix.scale(0.2, 0.1, 0.2);                           // set main scaler
   hoof.render();
 }
