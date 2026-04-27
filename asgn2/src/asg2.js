@@ -1,4 +1,3 @@
-// ColoredPoint.js (c) 2012 matsuda
 // Vertex shader program
 var VSHADER_SOURCE = `
   attribute vec4 a_Position;
@@ -89,7 +88,7 @@ let g_mouseClicked=false;                // default to not clicked
 let g_lastMouseX=0;
 let g_lastMouseY=0;
 let g_canvasColor=[0.0,0.0,0.0,1.0];     // default to black
-let g_selectedScale=0.5;                 // default to 1/2 scale
+let g_selectedScale=0.75;                 // default to 3/4 scale
 let g_selectedJoint_L_SH= 0;             // default to no rotation
 let g_selectedJoint_FL_KN=0;             // ^^ 
 let g_selectedJoint_R_SH= 0;
