@@ -73,7 +73,7 @@ class Pyramid {
 
     // Left side
     gl.uniform4f(u_FragColor, rgba[0]*0.6, rgba[1]*0.6, rgba[2]*0.6, rgba[3]);
-    gl.drawArrays(gl.TRIANGLES, 6, 3);  // verts 15 --- 18 => front of pyramid 
+    gl.drawArrays(gl.TRIANGLES, 15, 3);  // verts 15 --- 18 => front of pyramid 
 }
 }
 
