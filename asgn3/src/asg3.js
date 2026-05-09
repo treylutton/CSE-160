@@ -1,12 +1,17 @@
 // Vertex shader program
 var VSHADER_SOURCE = `
   precision mediump float;
+
   attribute vec4 a_Position;
   attribute vec2 a_UV;
+
   varying vec2 v_UV;
+
   uniform mat4 u_ModelMatrix;
   uniform mat4 u_GlobalRotateMatrix;
-  void main() {
+
+  void main() 
+  {
     gl_Position = u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
     v_UV = a_UV;
   }`
@@ -14,13 +19,34 @@ var VSHADER_SOURCE = `
 // Fragment shader program
 var FSHADER_SOURCE = `
   precision mediump float;
+
   uniform vec4 u_FragColor;
-  varying vec2 v_UV;
   uniform sampler2D u_Sampler0;
-  void main() {
-    gl_FragColor = u_FragColor;
-    gl_FragColor = vec4(v_UV, 1.0, 1.0);
-    gl_FragColor = texture2D(u_Sampler0, v_UV);
+  uniform int u_tex_enum;
+
+  varying vec2 v_UV;
+
+  void main() 
+  {
+    if (u_tex_enum == -2) 
+    {
+      gl_FragColor = u_FragColor;                   // use color
+    } 
+
+    else if (u_tex_enum == -1 ) 
+    {
+      gl_FragColor = vec4(v_UV, 1.0, 1.0);          // use debug UV color lerp
+    } 
+
+    else if (u_tex_enum == 0)
+    {
+      gl_FragColor = texture2D(u_Sampler0, v_UV);   // use texture0
+    }
+
+    else 
+    {
+      gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);      // error - red
+    }
   }`
 
   // Global Variables
@@ -141,7 +167,7 @@ function load_img_TEXTURE0(image) {
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
 
   // tell the shader to use texture unit 0
-  gl.uniform1i(u_Sampler, 0);
+  gl.uniform1i(u_Sampler0, 0);
 }
 
 
@@ -257,7 +283,7 @@ function main() {
   init_textures();
 
   // Specify the color for clearing <canvas>
-  gl.clearColor(0.0, 0.0, 0.0, 1.0);
+  gl.clearColor(0.4, 0.3, 0.2, 1.0);
 
   // Clear <canvas>
   gl.clear(gl.COLOR_BUFFER_BIT);
@@ -388,7 +414,7 @@ function draw_head(anc_x, anc_y, anc_z, joint_angle_neck, axis_x) {
   var nose = new Cube();
   nose.color = c_body; 
   nose.matrix = head_matrix;
-  nose.matrix.translate(-.025,0,.1);
+  nose.matrix.translate(-.025,-0.001,.1);           // small delta Y to rm Y fighting on bottom of jaw
   nose.matrix.scale(.45,.2,-.2);
   nose.render();
 

@@ -6,9 +6,10 @@ class Cube {
   static uv_buf   = null;
 
   constructor() {
-    this.type = 'cube';
-    this.color = [1.0, 1.0, 1.0, 1.0];
-    this.matrix = new Matrix4();
+    this.type    = 'cube';
+    this.color   = [1.0, 1.0, 1.0, 1.0];
+    this.matrix  = new Matrix4();
+    this.tex_num = 0;
   }
 
   static generateVertices() {
@@ -110,29 +111,52 @@ class Cube {
     // pass the matrix of this cube to uniform shader variable
     gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
 
-    // Front of cube
-    gl.uniform4f(u_FragColor, rgba[0]*0.9, rgba[1]*0.9, rgba[2]*0.9, rgba[3]);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);  // verts 0 ------ 6 => front of cube
+    if (this.tex_num == -2) { // if we are using color
 
-    // Back of cube
-    gl.uniform4f(u_FragColor, rgba[0]*0.8, rgba[1]*0.8, rgba[2]*0.8, rgba[3]);
-    gl.drawArrays(gl.TRIANGLES, 6, 6);  // verts 6 ------ 12 => back of cube
+      // Front of cube
+      gl.uniform4f(u_FragColor, rgba[0]*0.9, rgba[1]*0.9, rgba[2]*0.9, rgba[3]);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);  // verts 0 ------ 6 => front of cube
 
-    // Top of cube
-    gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);  // top brightest
-    gl.drawArrays(gl.TRIANGLES, 12, 6);  // verts 12 ------ 18 => top of cube
+      // Back of cube
+      gl.uniform4f(u_FragColor, rgba[0]*0.8, rgba[1]*0.8, rgba[2]*0.8, rgba[3]);
+      gl.drawArrays(gl.TRIANGLES, 6, 6);  // verts 6 ------ 12 => back of cube
 
-    // Bottom of cube
-    gl.uniform4f(u_FragColor, rgba[0]*0.5, rgba[1]*0.5, rgba[2]*0.5, rgba[3]);
-    gl.drawArrays(gl.TRIANGLES, 18, 6);  // verts 18 ------ 24 => bottom of cube
+      // Top of cube
+      gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);  // top brightest
+      gl.drawArrays(gl.TRIANGLES, 12, 6);  // verts 12 ------ 18 => top of cube
 
-    // Left side of cube
-    gl.uniform4f(u_FragColor, rgba[0]*0.7, rgba[1]*0.7, rgba[2]*0.7, rgba[3]);
-    gl.drawArrays(gl.TRIANGLES, 24, 6);  // verts 24 ------ 30 => left of cube
+      // Bottom of cube
+      gl.uniform4f(u_FragColor, rgba[0]*0.5, rgba[1]*0.5, rgba[2]*0.5, rgba[3]);
+      gl.drawArrays(gl.TRIANGLES, 18, 6);  // verts 18 ------ 24 => bottom of cube
 
-    // Right side of cube
-    gl.uniform4f(u_FragColor, rgba[0]*0.6, rgba[1]*0.6, rgba[2]*0.6, rgba[3]);
-    gl.drawArrays(gl.TRIANGLES, 30, 6);  // verts 30 ------ 36 => top of cube
- }
+      // Left side of cube
+      gl.uniform4f(u_FragColor, rgba[0]*0.7, rgba[1]*0.7, rgba[2]*0.7, rgba[3]);
+      gl.drawArrays(gl.TRIANGLES, 24, 6);  // verts 24 ------ 30 => left of cube
+
+      // Right side of cube
+      gl.uniform4f(u_FragColor, rgba[0]*0.6, rgba[1]*0.6, rgba[2]*0.6, rgba[3]);
+      gl.drawArrays(gl.TRIANGLES, 30, 6);  // verts 30 ------ 36 => top of cube
+
+    } else { // using a texture (or debug color)
+
+      // Front of cube
+      gl.drawArrays(gl.TRIANGLES, 0, 6);  // verts 0 ------ 6 => front of cube
+
+      // Back of cube
+      gl.drawArrays(gl.TRIANGLES, 6, 6);  // verts 6 ------ 12 => back of cube
+
+      // Top of cube
+      gl.drawArrays(gl.TRIANGLES, 12, 6);  // verts 12 ------ 18 => top of cube
+
+      // Bottom of cube
+      gl.drawArrays(gl.TRIANGLES, 18, 6);  // verts 18 ------ 24 => bottom of cube
+
+      // Left side of cube
+      gl.drawArrays(gl.TRIANGLES, 24, 6);  // verts 24 ------ 30 => left of cube
+
+      // Right side of cube
+      gl.drawArrays(gl.TRIANGLES, 30, 6);  // verts 30 ------ 36 => top of cube
+    }
+  }
 }
 
