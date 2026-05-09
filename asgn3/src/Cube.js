@@ -10,6 +10,7 @@ class Cube {
     this.color   = [1.0, 1.0, 1.0, 1.0];
     this.matrix  = new Matrix4();
     this.tex_num = 0;
+    this.tex_color_weight = 0.5;
   }
 
   static generateVertices() {
@@ -108,10 +109,16 @@ class Cube {
     // enable assignment to a_UV variable
     gl.enableVertexAttribArray(a_UV);
 
+    // pass the texture control int of this cube to frag shader
+    gl.uniform1i(u_tex_enum, this.tex_num);
+
+    // pass the texture color weight (float) of this cube to frag shader
+    gl.uniform1f(u_tex_color_weight, this.tex_color_weight);
+
     // pass the matrix of this cube to uniform shader variable
     gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
 
-    if (this.tex_num == -2) { // if we are using color
+    //if (this.tex_num == -2) { // if we are using color
 
       // Front of cube
       gl.uniform4f(u_FragColor, rgba[0]*0.9, rgba[1]*0.9, rgba[2]*0.9, rgba[3]);
@@ -136,7 +143,7 @@ class Cube {
       // Right side of cube
       gl.uniform4f(u_FragColor, rgba[0]*0.6, rgba[1]*0.6, rgba[2]*0.6, rgba[3]);
       gl.drawArrays(gl.TRIANGLES, 30, 6);  // verts 30 ------ 36 => top of cube
-
+/*
     } else { // using a texture (or debug color)
 
       // Front of cube
@@ -156,7 +163,8 @@ class Cube {
 
       // Right side of cube
       gl.drawArrays(gl.TRIANGLES, 30, 6);  // verts 30 ------ 36 => top of cube
-    }
+    */
+    
   }
 }
 

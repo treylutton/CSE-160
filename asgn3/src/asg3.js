@@ -9,11 +9,13 @@ var VSHADER_SOURCE = `
 
   uniform mat4 u_ModelMatrix;
   uniform mat4 u_GlobalRotateMatrix;
+  uniform mat4 u_ViewMatrix;
+  uniform mat4 u_ProjectionMatrix;
 
   void main() 
   {
-    gl_Position = u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
-    v_UV = a_UV;
+    gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
+    v_UV = a_UV;    // pass the attribute UV to the fragment shader through the varying UV
   }`
 
 // Fragment shader program
@@ -23,7 +25,7 @@ var FSHADER_SOURCE = `
   uniform vec4 u_FragColor;
   uniform sampler2D u_Sampler0;
   uniform int u_tex_enum;
-
+  uniform float u_tex_color_weight;
   varying vec2 v_UV;
 
   void main() 
@@ -35,12 +37,14 @@ var FSHADER_SOURCE = `
 
     else if (u_tex_enum == -1 ) 
     {
-      gl_FragColor = vec4(v_UV, 1.0, 1.0);          // use debug UV color lerp
+      gl_FragColor = vec4(v_UV, 1.0, 1.0);          // use debug UV color
     } 
 
     else if (u_tex_enum == 0)
     {
-      gl_FragColor = texture2D(u_Sampler0, v_UV);   // use texture0
+      // Uses a linear interpolation between the sampled texture color and the selected color
+      // Uniform variable 'u_tex_color_weight' controls the ratio between tex & color.
+      gl_FragColor = (1.0 - u_tex_color_weight) * u_FragColor + u_tex_color_weight * texture2D(u_Sampler0, v_UV);
     }
 
     else 
@@ -55,9 +59,13 @@ var FSHADER_SOURCE = `
   let a_Position;
   let a_UV;
   let u_Sampler0;
+  let u_tex_enum;
+  let u_tex_color_weight;
   let u_FragColor;
   let u_ModelMatrix;
   let u_GlobalRotateMatrix;
+  let u_ViewMatrix;
+  let u_ProjectionMatrix;
 
 // init function for webgl
 function init_webgl() {
@@ -121,10 +129,38 @@ function init_shaders() {
     return;
   }
 
+  // Get the storage location of u_ModelMatrix
+  u_ProjectionMatrix = gl.getUniformLocation(gl.program, 'u_ProjectionMatrix');
+  if (!u_ProjectionMatrix) {
+    console.log('Failed to get the storage location of u_ProjectionMatrix');
+    return;
+  }
+
+  // Get the storage location of u_ModelMatrix
+  u_ViewMatrix = gl.getUniformLocation(gl.program, 'u_ViewMatrix');
+  if (!u_ViewMatrix) {
+    console.log('Failed to get the storage location of u_ViewMatrix');
+    return;
+  }
+
   // get the storage location of u_Sampler0
   u_Sampler0 = gl.getUniformLocation(gl.program, 'u_Sampler0');
   if (!u_Sampler0) {
     console.log('Failed to get the location of u_Sampler0.');
+    return false;
+  }
+
+  // get the storage location of u_Sampler0
+  u_tex_enum = gl.getUniformLocation(gl.program, 'u_tex_enum');
+  if (!u_tex_enum) {
+    console.log('Failed to get the location of u_tex_enum.');
+    return false;
+  }
+
+  // get the storage location of u_Sampler0
+  u_tex_color_weight = gl.getUniformLocation(gl.program, 'u_tex_color_weight');
+  if (!u_tex_color_weight) {
+    console.log('Failed to get the location of u_tex_color_weight.');
     return false;
   }
 }
@@ -327,11 +363,21 @@ function render_all_shapes() {
   // Clear <canvas>
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+  // pass the projection matrix to vertex shader
+  var projection_matrix = new Matrix4();
+  projection_matrix.setPerspective(90, canvas.width / canvas.height, .1, 100);
+  gl.uniformMatrix4fv(u_ProjectionMatrix, false, projection_matrix.elements);
+
+  // pass the view matrix to vertex shader
+  var view_matrix = new Matrix4().scale(1.0,1.0,1.0);
+  view_matrix.setLookAt(0,0,-1, 0,0,0,  0,1,0); // ( eye, at, up )
+  gl.uniformMatrix4fv(u_ViewMatrix, false, view_matrix.elements);
+
   // pass u_GlobalRotateMatrix to shader
-  var globalRotMat = new Matrix4().rotate(g_selectedCameraAngleY, 0, 1, 0)
+  var global_rotate_matrix = new Matrix4().rotate(g_selectedCameraAngleY, 0, 1, 0)
                                   .rotate(g_selectedCameraAngleX,1,0,0)
                                   .scale(g_selectedScale, g_selectedScale, g_selectedScale);
-  gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMat.elements);
+  gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, global_rotate_matrix.elements);
 
   // DRAW THE OX
   // chest
