@@ -323,7 +323,7 @@ function draw_head(anc_x, anc_y, anc_z, joint_angle_neck, axis_x) {
   var nose = new Cube();
   nose.color = c_body; 
   nose.matrix = head_matrix;
-  nose.matrix.translate(-.025,0,.1);
+  nose.matrix.translate(-.025,-0.001,.1);
   nose.matrix.scale(.45,.2,-.2);
   nose.render();
 
