@@ -219,9 +219,19 @@ let g_lastMouseY=0;
 let g_canvasColor=[0.0,0.0,0.0,1.0];
 let g_selectedScale=0.75;
 
+// asg3
 let g_playerSpeed=0.02; 
 let g_cam_rot_increment=2; // degrees               
-// joints
+
+// Global Variables - Animation
+let g_walk_anim_on = false;
+let g_time;
+let g_poke_anim_on = false;
+let g_poke_anim_start = 0;
+let g_poke_anim_duration = 1000;
+let g_last_frame_time = 0;
+
+// Ox joint globals
 let g_selectedJoint_L_SH= 0;
 let g_selectedJoint_FL_KN=0;
 let g_selectedJoint_R_SH= 0;
@@ -236,40 +246,19 @@ let g_selectedJoint_RL_AN=0;
 let g_selectedJoint_RR_AN=0;
 let g_selectedJoint_neck =0;
 
-// Global Variables - Animation
-let g_walk_anim_on = false;
-let g_time;
-let g_poke_anim_on = false;
-let g_poke_anim_start = 0;
-let g_poke_anim_duration = 1000;
-let g_last_frame_time = 0;
-
 function init_html_ui_elements() {
   // slider events 
   document.getElementById('s_player_speed').addEventListener('input', function() { g_playerSpeed = this.value / 100.0; render_all_shapes(); });
   document.getElementById('s_mouse_sens').addEventListener('input', function() { g_cam_rot_increment = this.value; render_all_shapes(); });
   document.getElementById('s_cam_tilt').addEventListener('input', function() { g_selectedCameraAngleX = this.value; render_all_shapes(); });
   document.getElementById('s_cam_angle').addEventListener('input', function() { g_selectedCameraAngleY = this.value; render_all_shapes(); });
+  document.getElementById('s_scene_size').addEventListener('input', function() { g_selectedScale = this.value / 100.0; render_all_shapes(); });
   document.getElementById('s_fov').addEventListener('input', function() 
   {
     camera.fov = this.value;
     camera.proj_matrix.setPerspective(camera.fov, canvas.width / canvas.height, 0.1, 1000);
     render_all_shapes(); 
   });
-  document.getElementById('s_scene_size').addEventListener('input', function() { g_selectedScale = this.value / 100.0; render_all_shapes(); });
-  document.getElementById('s_joint_l_sh').addEventListener('input', function() { g_selectedJoint_L_SH = this.value; render_all_shapes(); });
-  document.getElementById('s_joint_fl_kn').addEventListener('input', function() { g_selectedJoint_FL_KN = this.value; render_all_shapes(); });
-  document.getElementById('s_joint_fl_an').addEventListener('input', function() { g_selectedJoint_FL_AN = this.value; render_all_shapes(); });
-  document.getElementById('s_joint_fr_an').addEventListener('input', function() { g_selectedJoint_FR_AN = this.value; render_all_shapes(); });
-  document.getElementById('s_joint_rl_an').addEventListener('input', function() { g_selectedJoint_RL_AN = this.value; render_all_shapes(); });
-  document.getElementById('s_joint_rr_an').addEventListener('input', function() { g_selectedJoint_RR_AN = this.value; render_all_shapes(); });
-  document.getElementById('s_joint_r_sh').addEventListener('input', function() { g_selectedJoint_R_SH = this.value; render_all_shapes(); });
-  document.getElementById('s_joint_fr_kn').addEventListener('input', function() { g_selectedJoint_FR_KN = this.value; render_all_shapes(); });
-  document.getElementById('s_joint_l_hi').addEventListener('input', function() { g_selectedJoint_L_HI = this.value; render_all_shapes(); });
-  document.getElementById('s_joint_rl_kn').addEventListener('input', function() { g_selectedJoint_RL_KN = this.value; render_all_shapes(); });
-  document.getElementById('s_joint_r_hi').addEventListener('input', function() { g_selectedJoint_R_HI = this.value; render_all_shapes(); });
-  document.getElementById('s_joint_rr_kn').addEventListener('input', function() { g_selectedJoint_RR_KN = this.value; render_all_shapes(); });
-  document.getElementById('s_joint_neck').addEventListener('input', function() { g_selectedJoint_neck = this.value; render_all_shapes(); });
   
   // button events
   document.getElementById('b_anim_tog').onclick = function() {
