@@ -402,6 +402,9 @@ function render_all_shapes() {
                                   .scale(g_selectedScale, g_selectedScale, g_selectedScale);
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, global_rotate_matrix.elements);
 
+  // draw the ground plane
+
+
   // DRAW THE OX
   // chest
   var body = new Cube();
@@ -421,8 +424,8 @@ function render_all_shapes() {
     } else {
 
     var bow_depth = Math.sin(time * Math.PI);   // 0 -> 1 -> 0 over the duration => bow up and down
-    var sh = -45 * bow_depth;                   // shoulders bow back 0 -> -45 degrees
-    var kn = 30 * bow_depth;                    // knees bend forward 0 -> 30 degrees
+    var sh = -15 * bow_depth;                   // shoulders bow back 0 -> -15 degrees
+    var kn = 15 * bow_depth;                    // knees bend forward 0 -> 15 degrees
     var neck = -30 * bow_depth;                 // head bows down 0 -> -30 degrees
     
     draw_leg(-0.4, -0.35, -0.05, sh, kn, 0, true, false);     
