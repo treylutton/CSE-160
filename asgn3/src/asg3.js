@@ -55,6 +55,7 @@ var FSHADER_SOURCE = `
 
   // Global Variables
   let canvas;
+  let camera;
   let gl;
   let a_Position;
   let a_UV;
@@ -208,16 +209,21 @@ function load_img_TEXTURE0(image) {
 
 
 // Global Variables - UI
-let g_selectedColor=[1.0,1.0,1.0,1.0];   // default to white
-let g_selectedCameraAngleY=320;          // default to 320 deg
-let g_selectedCameraAngleX=360;          // default to no rotation (one full rotation so slider starts centered)
-let g_mouseClicked=false;                // default to not clicked
+let g_clearColor=[.3,.4,.1,1];
+let g_selectedColor=[1.0,1.0,1.0,1.0];
+let g_selectedCameraAngleY=320;
+let g_selectedCameraAngleX=360; 
+let g_mouseClicked=false;
 let g_lastMouseX=0;
 let g_lastMouseY=0;
-let g_canvasColor=[0.0,0.0,0.0,1.0];     // default to black
-let g_selectedScale=0.75;                 // default to 3/4 scale
-let g_selectedJoint_L_SH= 0;             // default to no rotation
-let g_selectedJoint_FL_KN=0;             // ^^ 
+let g_canvasColor=[0.0,0.0,0.0,1.0];
+let g_selectedScale=0.75;
+
+let g_playerSpeed=0.02; 
+let g_cam_rot_increment=2; // degrees               
+// joints
+let g_selectedJoint_L_SH= 0;
+let g_selectedJoint_FL_KN=0;
 let g_selectedJoint_R_SH= 0;
 let g_selectedJoint_FR_KN=0;
 let g_selectedJoint_L_HI= 0;
@@ -240,6 +246,8 @@ let g_last_frame_time = 0;
 
 function init_html_ui_elements() {
   // slider events 
+  document.getElementById('s_player_speed').addEventListener('input', function() { g_playerSpeed = this.value / 100.0; render_all_shapes(); });
+  document.getElementById('s_mouse_sens').addEventListener('input', function() { g_cam_rot_increment = this.value; render_all_shapes(); });
   document.getElementById('s_cam_tilt').addEventListener('input', function() { g_selectedCameraAngleX = this.value; render_all_shapes(); });
   document.getElementById('s_cam_angle').addEventListener('input', function() { g_selectedCameraAngleY = this.value; render_all_shapes(); });
   document.getElementById('s_scene_size').addEventListener('input', function() { g_selectedScale = this.value / 100.0; render_all_shapes(); });
@@ -310,19 +318,28 @@ function init_html_ui_elements() {
   }
 
 }
-
-function main() {
-  // init
+function init() {
+  // all init functions
   init_webgl();
   init_shaders();
   init_html_ui_elements();
   init_textures();
 
-  // Specify the color for clearing <canvas>
-  gl.clearColor(0.4, 0.3, 0.2, 1.0);
-
-  // Clear <canvas>
+  // set the clear color and clear the canvas
+  gl.clearColor(g_clearColor[0], g_clearColor[1], g_clearColor[2], g_clearColor[3]);
   gl.clear(gl.COLOR_BUFFER_BIT);
+}
+let g_keys = new Set();
+
+function main() {
+  init();
+
+  // register event handlers
+  document.onkeydown = function(ev) { g_keys.add(ev.keyCode); };
+  document.onkeyup   = function(ev) { g_keys.delete(ev.keyCode); };
+
+  // create camera
+  camera = new Camera();
 
   render_all_shapes();
 
@@ -330,11 +347,21 @@ function main() {
   requestAnimationFrame(tick);
 }
 
+function process_keys() {
+  if (g_keys.has(87)) camera.move_forward();  // w
+  if (g_keys.has(83)) camera.move_backward(); // s
+  if (g_keys.has(65)) camera.move_left();     // a
+  if (g_keys.has(68)) camera.move_right();    // d
+  if (g_keys.has(81)) camera.pan_left();      // q
+  if (g_keys.has(69)) camera.pan_right();     // e
+}
+
 // Called by browser repeatedly
-function tick() { 
+function tick() {
   var start_time = performance.now();
   var duration = start_time - g_time; // get duration
   g_time = start_time;                // update g_time
+  process_keys();
   render_all_shapes();                // draw everything
   text_to_html("ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration), 'p_performance');
   requestAnimationFrame(tick);    // tell the browser to call again
@@ -364,14 +391,10 @@ function render_all_shapes() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // pass the projection matrix to vertex shader
-  var projection_matrix = new Matrix4();
-  projection_matrix.setPerspective(90, canvas.width / canvas.height, .1, 100);
-  gl.uniformMatrix4fv(u_ProjectionMatrix, false, projection_matrix.elements);
+  gl.uniformMatrix4fv(u_ProjectionMatrix, false, camera.proj_matrix.elements);
 
   // pass the view matrix to vertex shader
-  var view_matrix = new Matrix4().scale(1.0,1.0,1.0);
-  view_matrix.setLookAt(0,0,-1, 0,0,0,  0,1,0); // ( eye, at, up )
-  gl.uniformMatrix4fv(u_ViewMatrix, false, view_matrix.elements);
+  gl.uniformMatrix4fv(u_ViewMatrix, false, camera.view_matrix.elements);
 
   // pass u_GlobalRotateMatrix to shader
   var global_rotate_matrix = new Matrix4().rotate(g_selectedCameraAngleY, 0, 1, 0)
