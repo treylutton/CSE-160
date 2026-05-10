@@ -250,6 +250,12 @@ function init_html_ui_elements() {
   document.getElementById('s_mouse_sens').addEventListener('input', function() { g_cam_rot_increment = this.value; render_all_shapes(); });
   document.getElementById('s_cam_tilt').addEventListener('input', function() { g_selectedCameraAngleX = this.value; render_all_shapes(); });
   document.getElementById('s_cam_angle').addEventListener('input', function() { g_selectedCameraAngleY = this.value; render_all_shapes(); });
+  document.getElementById('s_fov').addEventListener('input', function() 
+  {
+    camera.fov = this.value;
+    camera.proj_matrix.setPerspective(camera.fov, canvas.width / canvas.height, 0.1, 1000);
+    render_all_shapes(); 
+  });
   document.getElementById('s_scene_size').addEventListener('input', function() { g_selectedScale = this.value / 100.0; render_all_shapes(); });
   document.getElementById('s_joint_l_sh').addEventListener('input', function() { g_selectedJoint_L_SH = this.value; render_all_shapes(); });
   document.getElementById('s_joint_fl_kn').addEventListener('input', function() { g_selectedJoint_FL_KN = this.value; render_all_shapes(); });
@@ -403,7 +409,13 @@ function render_all_shapes() {
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, global_rotate_matrix.elements);
 
   // draw the ground plane
-
+  var floor = new Cube();
+  floor.color = [1.0,0.0,0.0,1.0];
+  floor.tex_num = -1;
+  floor.matrix.translate(0,-1,0);
+  floor.matrix.scale(32,0,32);
+  floor.matrix.translate(-.5,0,-.5);
+  floor.render();
 
   // DRAW THE OX
   // chest
