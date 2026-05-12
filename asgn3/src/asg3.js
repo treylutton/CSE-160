@@ -365,6 +365,7 @@ let g_selectedScale=1.0;
 // asg3
 let g_playerSpeed=0.02;
 let g_mouse_sens=.2;
+let g_ox_speed=0.01;
 // Global Variables - Animation
 let g_walk_anim_on = false;
 let g_time;
@@ -393,9 +394,7 @@ function init_html_ui_elements() {
   // slider events 
   document.getElementById('s_player_speed').addEventListener('input', function() { g_playerSpeed = this.value / 100.0; render_all_shapes(); });
   document.getElementById('s_mouse_sens').addEventListener('input', function() { g_mouse_sens = this.value; render_all_shapes(); });
-  document.getElementById('s_cam_tilt').addEventListener('input', function() { g_selectedCameraAngleX = this.value; render_all_shapes(); });
-  document.getElementById('s_cam_angle').addEventListener('input', function() { g_selectedCameraAngleY = this.value; render_all_shapes(); });
-  document.getElementById('s_scene_size').addEventListener('input', function() { g_selectedScale = this.value / 100.0; render_all_shapes(); });
+  document.getElementById('s_ox_speed').addEventListener('input', function() { g_ox_speed = this.value / 1000.0; render_all_shapes(); });
   document.getElementById('s_fov').addEventListener('input', function() 
   {
     camera.fov = this.value;
@@ -511,12 +510,56 @@ function rm_block() {
   }
 }
 
+function update_ox(dt) 
+{
+  // decrease the 'time to live' of the current action by time passed
+  g_ox_turn_timer -= dt;
+
+  // choose a new action if expired TTL
+  if (g_ox_turn_timer <= 0) {
+    g_ox_angle = Math.random() * 360;   // random angle
+    g_ox_turn_timer = 4000 + Math.random() * 3000;             // new direction 4-7 seconds
+  }
+
+  // Convert angle to rad, and convert for ox offset 
+  // its originally drawn facing -90 degrees in XZ plane
+  var rad = g_ox_angle * Math.PI / 180;
+
+  // compute new x and z
+  var new_x = g_ox_x + Math.cos(rad) * g_ox_speed;
+  var new_z = g_ox_z + Math.sin(rad) * g_ox_speed;
+
+  // convert coordinates to map index
+  // note the padding to check 
+  var x_idx = Math.floor(new_x + 16);
+  var z_idx = Math.floor(new_z + 16);
+
+  // if no collision move forward
+  if (x_idx >= 0 && x_idx < 32 && z_idx >= 0 && z_idx < 32 && g_map[x_idx * 32 + z_idx] == 0) {
+    g_ox_x = new_x;
+    g_ox_z = new_z;
+  } else {
+    // new rand direction and distance
+    g_ox_angle = Math.random() * 360;
+    g_ox_turn_timer = 4000 + Math.random() * 3000;
+  }
+
+  // rebuild the base matrix: translate to world pos, then rotate to face heading
+  g_ox_base = new Matrix4();
+  g_ox_base.translate(g_ox_x, 0, g_ox_z);
+  // Theres a conversion in the rotation from the position I originally
+  // draw the ox (first quadrant, facing -90 degrees = facing -Z axis)
+  // add 90 to face the angle of rotation, and invert to get the correct direction
+  g_ox_base.rotate(-1 * (g_ox_angle + 90), 0, 1, 0);
+}
+
 // Called by browser repeatedly
 function tick() {
   var start_time = performance.now();
   var duration = start_time - g_time; // get duration
   g_time = start_time;                // update g_time
   process_keys();
+  if (g_walk_anim_on) update_ox(duration);
   render_all_shapes();                // draw everything
   text_to_html("ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration), 'p_performance');
   requestAnimationFrame(tick);    // tell the browser to call again
@@ -539,13 +582,15 @@ let c_body = [0.41, 0.33, 0.27, 1.0];
 let c_hoof = [0.2, 0.2, 0.2, 1.0];
 let c_horn = [.8,.8,.8,1];
 
+// Ox animation/ AI globals
+let g_ox_x = 0, g_ox_z = 0;
+let g_ox_angle = 0;
+let g_ox_turn_timer = 0;
+var g_ox_base = new Matrix4(); // world transform applied to ox body, head, legs
+
+// global map
 var g_map = [
   4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
-  4,2,0,2,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
-  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
-  4,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
-  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
-  4,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
@@ -554,6 +599,15 @@ var g_map = [
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,2,1,1,1,1,1,1,1,1,1,1,2,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,2,1,1,1,1,1,1,1,1,1,1,2,0,0,0,0,0,0,0,0,0,0,4,
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
@@ -563,11 +617,7 @@ var g_map = [
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
-  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
-  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
-  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
-  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
-  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,1,2,3,4,5,4,3,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
   4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
@@ -631,6 +681,7 @@ function render_all_shapes() {
   // chest
   var body = new Cube();
   body.color = c_body;
+  body.matrix = new Matrix4(g_ox_base); // start from ox world transform
   body.matrix.translate(-0.35, -0.3, 0.0);
   body.matrix.scale(0.7, 0.6, 1.2);
   body.render();
@@ -692,6 +743,7 @@ function draw_head(anc_x, anc_y, anc_z, joint_angle_neck, axis_x) {
   // head
   var head = new Cube();
   head.color = c_body;
+  head.matrix = new Matrix4(g_ox_base); // start from ox world transform
   head.matrix.translate(anc_x, anc_y, anc_z);
   head.matrix.translate(.2,0,.4);
   if (!axis_x) {
@@ -763,6 +815,7 @@ function draw_leg(anc_x, anc_y, anc_z, joint_angle_sh, joint_angle_kn, joint_ang
   // draw the shoulder (or hip)
   var shoulder = new Cube();
   shoulder.color = c_body;                                    // set the color
+  shoulder.matrix = new Matrix4(g_ox_base);                   // start from ox world transform
   shoulder.matrix.translate(anc_x, anc_y, anc_z);             // move to the anchor point (final translate)
   var flipped_x = -1;                                         // assume right leg
   if (left_side) {                                            // unless param left_side is true
