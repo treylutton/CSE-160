@@ -24,6 +24,7 @@ var FSHADER_SOURCE = `
 
   uniform vec4 u_FragColor;
   uniform sampler2D u_Sampler0;
+  uniform sampler2D u_Sampler1;
   uniform int u_tex_enum;
   uniform float u_tex_color_weight;
   varying vec2 v_UV;
@@ -47,6 +48,13 @@ var FSHADER_SOURCE = `
       gl_FragColor = (1.0 - u_tex_color_weight) * u_FragColor + u_tex_color_weight * texture2D(u_Sampler0, v_UV);
     }
 
+    else if (u_tex_enum == 1)
+    {
+      // Uses a linear interpolation between the sampled texture color and the selected color
+      // Uniform variable 'u_tex_color_weight' controls the ratio between tex & color.
+      gl_FragColor = (1.0 - u_tex_color_weight) * u_FragColor + u_tex_color_weight * texture2D(u_Sampler1, v_UV);
+    }
+
     else 
     {
       gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);      // error - red
@@ -60,6 +68,7 @@ var FSHADER_SOURCE = `
   let a_Position;
   let a_UV;
   let u_Sampler0;
+  let u_Sampler1;
   let u_tex_enum;
   let u_tex_color_weight;
   let u_FragColor;
@@ -152,6 +161,13 @@ function init_shaders() {
   }
 
   // get the storage location of u_Sampler0
+  u_Sampler1 = gl.getUniformLocation(gl.program, 'u_Sampler1');
+  if (!u_Sampler1) {
+    console.log('Failed to get the location of u_Sampler1.');
+    return false;
+  }
+
+  // get the storage location of u_Sampler0
   u_tex_enum = gl.getUniformLocation(gl.program, 'u_tex_enum');
   if (!u_tex_enum) {
     console.log('Failed to get the location of u_tex_enum.');
@@ -168,16 +184,23 @@ function init_shaders() {
 
 function init_textures() {
   // create the image object
-  var image = new Image();
-  if (!image) {
+  var image0 = new Image();
+  if (!image0) {
+    console.log('Failed to create image object.');
+    return false;
+  }
+
+  var image1 = new Image();
+  if (!image1) {
     console.log('Failed to create image object.');
     return false;
   }
 
   // register the event handler to be called on loading an image
-  image.onload = function() { load_img_TEXTURE0(image); };
-
-  image.src = '../lib/tex/banana_2.png';
+  image0.onload = function() { load_img_TEXTURE0(image0); };
+  image1.onload = function() { load_img_TEXTURE1(image1); };
+  image0.src = '../lib/tex/Grass_04.png';
+  image1.src = '../lib/tex/skybox.png';
 }
 
 function load_img_TEXTURE0(image) {
@@ -197,16 +220,41 @@ function load_img_TEXTURE0(image) {
   // bind texture object to target
   gl.bindTexture(gl.TEXTURE_2D, tex);
 
+  // set the texture image
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+
+  // generate mipmaps and use trilinear filtering to eliminate moire patterns
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+
+  gl.uniform1i(u_Sampler0, 0);
+}
+
+function load_img_TEXTURE1(image) {
+  // create the texture object
+  var tex = gl.createTexture();
+  if (!tex) {
+    console.log('Failed to create the texture object.');
+    return false;
+  }
+
+  // flip Y axis
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+
+  // enable texture unit 1
+  gl.activeTexture(gl.TEXTURE1);
+
+  // bind texture object to target
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+
   // set the texture parameters
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 
   // set the texture image
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
 
-  // tell the shader to use texture unit 0
-  gl.uniform1i(u_Sampler0, 0);
+  gl.uniform1i(u_Sampler1, 1);
 }
-
 
 // Global Variables - UI
 let g_clearColor=[.3,.4,.1,1];
@@ -399,12 +447,23 @@ function render_all_shapes() {
 
   // draw the ground plane
   var floor = new Cube();
-  floor.color = [1.0,0.0,0.0,1.0];
-  floor.tex_num = -1;
+  floor.color = [0.0,0.0,0.0,1.0];
+  floor.tex_num = 0;
+  floor.tex_color_weight = 1;
   floor.matrix.translate(0,-1,0);
   floor.matrix.scale(32,0,32);
   floor.matrix.translate(-.5,0,-.5);
   floor.render();
+
+  // draw the sky box
+  var sky = new Cube();
+  sky.color = [0,0,1,1];
+  sky.tex_num = 1;
+  sky.tex_color_weight = .7;
+  sky.matrix.translate(0,.75,0);
+  sky.matrix.scale(50,50,50);
+  sky.matrix.translate(-.5,-.5,-.5);
+  sky.render();
 
   // DRAW THE OX
   // chest

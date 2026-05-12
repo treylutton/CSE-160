@@ -9,7 +9,7 @@ class Cube {
     this.type    = 'cube';
     this.color   = [1.0, 1.0, 1.0, 1.0];
     this.matrix  = new Matrix4();
-    this.tex_num = 0;
+    this.tex_num = -2;
     this.tex_color_weight = 0.5;
   }
 
