@@ -25,6 +25,8 @@ var FSHADER_SOURCE = `
   uniform vec4 u_FragColor;
   uniform sampler2D u_Sampler0;
   uniform sampler2D u_Sampler1;
+  uniform sampler2D u_Sampler2;
+  uniform sampler2D u_Sampler3;
   uniform int u_tex_enum;
   uniform float u_tex_color_weight;
   varying vec2 v_UV;
@@ -45,14 +47,23 @@ var FSHADER_SOURCE = `
     {
       // Uses a linear interpolation between the sampled texture color and the selected color
       // Uniform variable 'u_tex_color_weight' controls the ratio between tex & color.
-      gl_FragColor = (1.0 - u_tex_color_weight) * u_FragColor + u_tex_color_weight * texture2D(u_Sampler0, v_UV);
+      // texture0 is also tiled (scaled UV vector)
+      gl_FragColor = (1.0 - u_tex_color_weight) * u_FragColor + u_tex_color_weight * texture2D(u_Sampler0, v_UV * 8.0);
     }
 
     else if (u_tex_enum == 1)
     {
-      // Uses a linear interpolation between the sampled texture color and the selected color
-      // Uniform variable 'u_tex_color_weight' controls the ratio between tex & color.
       gl_FragColor = (1.0 - u_tex_color_weight) * u_FragColor + u_tex_color_weight * texture2D(u_Sampler1, v_UV);
+    }
+
+    else if (u_tex_enum == 2)
+    {
+      gl_FragColor = (1.0 - u_tex_color_weight) * u_FragColor + u_tex_color_weight * texture2D(u_Sampler2, v_UV);
+    }
+
+    else if (u_tex_enum == 3)
+    {
+      gl_FragColor = (1.0 - u_tex_color_weight) * u_FragColor + u_tex_color_weight * texture2D(u_Sampler3, v_UV);
     }
 
     else 
@@ -69,6 +80,8 @@ var FSHADER_SOURCE = `
   let a_UV;
   let u_Sampler0;
   let u_Sampler1;
+  let u_Sampler2;
+  let u_Sampler3;
   let u_tex_enum;
   let u_tex_color_weight;
   let u_FragColor;
@@ -160,14 +173,24 @@ function init_shaders() {
     return false;
   }
 
-  // get the storage location of u_Sampler0
   u_Sampler1 = gl.getUniformLocation(gl.program, 'u_Sampler1');
   if (!u_Sampler1) {
     console.log('Failed to get the location of u_Sampler1.');
     return false;
   }
 
-  // get the storage location of u_Sampler0
+  u_Sampler2 = gl.getUniformLocation(gl.program, 'u_Sampler2');
+  if (!u_Sampler2) {
+    console.log('Failed to get the location of u_Sampler2.');
+    return false;
+  }
+
+  u_Sampler3 = gl.getUniformLocation(gl.program, 'u_Sampler3');
+  if (!u_Sampler3) {
+    console.log('Failed to get the location of u_Sampler3.');
+    return false;
+  }
+
   u_tex_enum = gl.getUniformLocation(gl.program, 'u_tex_enum');
   if (!u_tex_enum) {
     console.log('Failed to get the location of u_tex_enum.');
@@ -184,23 +207,40 @@ function init_shaders() {
 
 function init_textures() {
   // create the image object
-  var image0 = new Image();
-  if (!image0) {
+  var i_grass = new Image();
+  if (!i_grass) {
     console.log('Failed to create image object.');
     return false;
   }
 
-  var image1 = new Image();
-  if (!image1) {
+  var i_sky = new Image();
+  if (!i_sky) {
+    console.log('Failed to create image object.');
+    return false;
+  }
+
+  var i_wood = new Image();
+  if (!i_wood) {
+    console.log('Failed to create image object.');
+    return false;
+  }
+
+  var i_brick = new Image();
+  if (!i_brick) {
     console.log('Failed to create image object.');
     return false;
   }
 
   // register the event handler to be called on loading an image
-  image0.onload = function() { load_img_TEXTURE0(image0); };
-  image1.onload = function() { load_img_TEXTURE1(image1); };
-  image0.src = '../lib/tex/Grass_04.png';
-  image1.src = '../lib/tex/skybox.png';
+  i_grass.onload = function() { load_img_TEXTURE0(i_grass); };
+  i_sky.onload = function() { load_img_TEXTURE1(i_sky); };
+  i_wood.onload = function() { load_img_TEXTURE2(i_wood);};
+  i_brick.onload = function() { load_img_TEXTURE3(i_brick);};
+
+  i_grass.src = '../lib/tex/Grass_04.png';
+  i_sky.src = '../lib/tex/skybox.png';
+  i_wood.src = '../lib/tex/WOOD_1C.PNG';
+  i_brick.src = '../lib/tex/BRICK_1A.PNG';
 }
 
 function load_img_TEXTURE0(image) {
@@ -247,30 +287,84 @@ function load_img_TEXTURE1(image) {
   // bind texture object to target
   gl.bindTexture(gl.TEXTURE_2D, tex);
 
-  // set the texture parameters
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  // set the texture image
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+
+  // generate mipmaps and use trilinear filtering to eliminate moire patterns
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+
+  gl.uniform1i(u_Sampler1, 1);
+}
+
+function load_img_TEXTURE2(image) {
+  // create the texture object
+  var tex = gl.createTexture();
+  if (!tex) {
+    console.log('Failed to create the texture object.');
+    return false;
+  }
+
+  // flip Y axis
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+
+  // enable texture unit 1
+  gl.activeTexture(gl.TEXTURE2);
+
+  // bind texture object to target
+  gl.bindTexture(gl.TEXTURE_2D, tex);
 
   // set the texture image
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
 
-  gl.uniform1i(u_Sampler1, 1);
+  // generate mipmaps and use trilinear filtering to eliminate moire patterns
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+
+  gl.uniform1i(u_Sampler2, 2);
+}
+
+function load_img_TEXTURE3(image) {
+  // create the texture object
+  var tex = gl.createTexture();
+  if (!tex) {
+    console.log('Failed to create the texture object.');
+    return false;
+  }
+
+  // flip Y axis
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+
+  // enable texture unit 1
+  gl.activeTexture(gl.TEXTURE3);
+
+  // bind texture object to target
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+
+  // set the texture image
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+
+  // generate mipmaps and use trilinear filtering to eliminate moire patterns
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+
+  gl.uniform1i(u_Sampler3, 3);
 }
 
 // Global Variables - UI
 let g_clearColor=[.3,.4,.1,1];
 let g_selectedColor=[1.0,1.0,1.0,1.0];
-let g_selectedCameraAngleY=320;
+let g_selectedCameraAngleY=360;
 let g_selectedCameraAngleX=360; 
 let g_mouseClicked=false;
 let g_lastMouseX=0;
 let g_lastMouseY=0;
 let g_canvasColor=[0.0,0.0,0.0,1.0];
-let g_selectedScale=0.75;
+let g_selectedScale=1.0;
 
 // asg3
-let g_playerSpeed=0.02; 
-let g_cam_rot_increment=2; // degrees               
-
+let g_playerSpeed=0.02;
+let g_mouse_sens=.2;
 // Global Variables - Animation
 let g_walk_anim_on = false;
 let g_time;
@@ -294,10 +388,11 @@ let g_selectedJoint_RL_AN=0;
 let g_selectedJoint_RR_AN=0;
 let g_selectedJoint_neck =0;
 
+
 function init_html_ui_elements() {
   // slider events 
   document.getElementById('s_player_speed').addEventListener('input', function() { g_playerSpeed = this.value / 100.0; render_all_shapes(); });
-  document.getElementById('s_mouse_sens').addEventListener('input', function() { g_cam_rot_increment = this.value; render_all_shapes(); });
+  document.getElementById('s_mouse_sens').addEventListener('input', function() { g_mouse_sens = this.value; render_all_shapes(); });
   document.getElementById('s_cam_tilt').addEventListener('input', function() { g_selectedCameraAngleX = this.value; render_all_shapes(); });
   document.getElementById('s_cam_angle').addEventListener('input', function() { g_selectedCameraAngleY = this.value; render_all_shapes(); });
   document.getElementById('s_scene_size').addEventListener('input', function() { g_selectedScale = this.value / 100.0; render_all_shapes(); });
@@ -326,38 +421,27 @@ function init_html_ui_elements() {
 
   // mouse events
   canvas.onmousedown = function(ev) {       // on click on canvas
-    if (ev.button == 2 && ev.shiftKey) {
+    if (ev.button == 2 && ev.shiftKey) {    // Shift + Right Click
       g_poke_anim_on = true;
       g_poke_anim_start = performance.now();
       return;
+    } else if (ev.button == 0 && ev.shiftKey) { // Shift + Left Click
+      canvas.requestPointerLock(); // locks the cursor to the canvas, wraps around
+    } else if (ev.button == 0 && document.pointerLockElement === canvas) { // Left Click while locked
+      rm_block();
     }
 
     g_mouseClicked = true;                  // record the click
-    var [y,x] = convert_coordinates_ev_to_gl(ev);
-    g_lastMouseX = x;
-    g_lastMouseY = y;
+    //var [x,y] = convert_coordinates_ev_to_gl(ev);
+    //g_lastMouseX = x;
+    //g_lastMouseY = y;
   }
-  canvas.onmouseup = function() {           // stop rotating when click released
-    g_mouseClicked = false;
-  }
-  canvas.onmouseleave = function() {        // stop rotating when cursor leaves canvas
+  document.onmouseup = function() {         // stop rotating wherever mouse is released
     g_mouseClicked = false;
   }
   canvas.onmousemove = function(ev) {
-    if (!g_mouseClicked) return;
-
-    var [y, x] = convert_coordinates_ev_to_gl(ev);
-
-    var delta_X = x - g_lastMouseX;
-    var delta_Y = y - g_lastMouseY;
-
-    g_selectedCameraAngleY = parseFloat(g_selectedCameraAngleY) - delta_Y * 100;
-    g_selectedCameraAngleX = parseFloat(g_selectedCameraAngleX) + delta_X * 100;
-
-    document.getElementById('s_cam_tilt').value = g_selectedCameraAngleX;
-    document.getElementById('s_cam_angle').value = g_selectedCameraAngleY;
-    g_lastMouseX = x;
-    g_lastMouseY = y;
+    if (document.pointerLockElement !== canvas) return;
+    camera.pan_mouse(ev.movementX * g_mouse_sens, ev.movementY * g_mouse_sens);
   }
 
 }
@@ -399,6 +483,34 @@ function process_keys() {
   if (g_keys.has(69)) camera.pan_right();     // e
 }
 
+function rm_block() {
+  // f_x = at_x - eye_x 
+  var f_x = camera.at.elements[0] - camera.eye.elements[0];
+  var f_z = camera.at.elements[2] - camera.eye.elements[2];
+
+  // compute ||f||
+  var magnitude = Math.sqrt((f_x * f_x) + (f_z * f_z));
+
+  // normalize
+  f_x /= magnitude;
+  f_z /= magnitude;
+
+  // walk the ray out from camera in .5 unit steps till 4.5 units
+  for (var d = 0.5; d <= 4.5; d += 0.5) {
+    // take the step and convert coordinates to map index
+    var x_idx = Math.floor(camera.eye.elements[0] + f_x * d + 16);
+    var z_idx = Math.floor(camera.eye.elements[2] + f_z * d + 16);
+    // stop if the ray is out of the map 
+    if (x_idx < 0 || x_idx >= 32 || z_idx < 0 || z_idx >= 32) break;
+    // rm a block from that cell if non-empty
+    if (g_map[x_idx * 32 + z_idx] > 0) {
+      g_map[x_idx * 32 + z_idx]--;
+      // rm at most one block => return
+      return;
+    }
+  }
+}
+
 // Called by browser repeatedly
 function tick() {
   var start_time = performance.now();
@@ -428,47 +540,49 @@ let c_hoof = [0.2, 0.2, 0.2, 1.0];
 let c_horn = [.8,.8,.8,1];
 
 var g_map = [
-  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+  4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
+  4,2,0,2,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,
+  4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
 ];
 
 function draw_map() {
   for (var x = 0; x < 32; x++) {
     for (var y = 0; y < 32; y++) {
-      if (g_map[x * 32 + y] == 1) {
+      for (var h = 0; h < g_map[x * 32 + y]; h++) {
         var c = new Cube();
         c.color = [1,1,1,1];
-        c.matrix.translate(x - 16, -1, y - 16);
+        c.tex_color_weight = 1.0;
+        c.tex_num = (x == 0 || x == 31 || y == 0 || y == 31) ? 3 : 2;
+        c.matrix.translate(x - 16, h - 1, y - 16);
         c.render();
       }
     }

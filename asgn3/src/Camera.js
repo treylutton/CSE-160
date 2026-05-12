@@ -20,6 +20,32 @@ class Camera {
                                    this.up.elements[0],  this.up.elements[1],  this.up.elements[2]);
     }
 
+    // returns true if world position (x, z) is inside a wall cell
+    is_wall(x, z) {
+        // g_map is shifted from [-16, 15] to [0,31]
+        // convert and take floor to get the map index the
+        // camera point is currently on. 
+        var x_idx = Math.floor(x + 16);
+        var z_idx = Math.floor(z + 16);
+        // convert to 1D array index and return if that cell is empty
+        return g_map[x_idx * 32 + z_idx] > 0;
+    }
+
+    // calculates X and Z axis collisions independently.
+    // checks if the x or z components of the scaled 
+    // forward vector intersect a cube
+    apply_move(dx, dz) {
+        if (!this.is_wall(this.eye.elements[0] + dx, this.eye.elements[2])) {
+            this.eye.elements[0] += dx;
+            this.at.elements[0]  += dx;
+        }
+        if (!this.is_wall(this.eye.elements[0], this.eye.elements[2] + dz)) {
+            this.eye.elements[2] += dz;
+            this.at.elements[2]  += dz;
+        }
+        this.update_view_matrix();
+    }
+
     move_forward() {
         // f = at - eye
         var f = new Vector3([0,0,0]);
@@ -30,10 +56,8 @@ class Camera {
         f.normalize();
         f.mul(g_playerSpeed);
 
-        // move camera pos & direction
-        this.at.add(f);
-        this.eye.add(f);
-        this.update_view_matrix();
+        // collision check helper (tests move first)
+        this.apply_move(f.elements[0], f.elements[2]);
     }
 
     move_backward() {
@@ -46,10 +70,8 @@ class Camera {
         b.normalize();
         b.mul(g_playerSpeed);
 
-        // move camera pos & direction
-        this.at.add(b);
-        this.eye.add(b);
-        this.update_view_matrix();
+         // collision check helper (tests move first)
+        this.apply_move(b.elements[0], b.elements[2]);
     }
 
     move_left() {
@@ -65,10 +87,8 @@ class Camera {
         l.normalize();
         l.mul(g_playerSpeed);
 
-        // move camera pos & direction
-        this.at.add(l);
-        this.eye.add(l);
-        this.update_view_matrix();
+         // collision check helper (tests move first) 
+        this.apply_move(l.elements[0], l.elements[2]);
     }
 
     move_right() {
@@ -84,10 +104,8 @@ class Camera {
         r.normalize();
         r.mul(-1.0 * g_playerSpeed);
 
-        // move camera pos & direction
-        this.at.add(r);
-        this.eye.add(r);
-        this.update_view_matrix();
+         // collision check helper (tests move first)
+        this.apply_move(r.elements[0], r.elements[2]);
     }
 
     pan_left() {
@@ -98,7 +116,7 @@ class Camera {
 
         // rotation matrix
         var rot = new Matrix4();
-        rot.setRotate(g_cam_rot_increment, this.up.elements[0], this.up.elements[1], this.up.elements[2]);
+        rot.setRotate((g_mouse_sens * 10.0), this.up.elements[0], this.up.elements[1], this.up.elements[2]);
 
         // f' = rot * f (matrix multiply)
         var f_prime = rot.multiplyVector3(f);
@@ -118,7 +136,7 @@ class Camera {
 
         // rotation matrix
         var rot = new Matrix4();
-        rot.setRotate(-1 * g_cam_rot_increment, this.up.elements[0], this.up.elements[1], this.up.elements[2]);
+        rot.setRotate(-1 * (g_mouse_sens * 10.0), this.up.elements[0], this.up.elements[1], this.up.elements[2]);
 
         // f' = rot * f (matrix multiply)
         var f_prime = rot.multiplyVector3(f);
@@ -129,4 +147,46 @@ class Camera {
                                this.eye.elements[2] + f_prime.elements[2]]);
         this.update_view_matrix();
     }
+
+    pan_mouse(dx, dy) {
+        // YAW 
+
+        // f = at - eye
+        var f = new Vector3([0,0,0]);
+        f.set(this.at);
+        f.sub(this.eye);
+
+        // rot -dx degrees (so right mouse movement turns right)
+        // center of rotation: up vector 
+        var yaw = new Matrix4();
+        yaw.setRotate(-dx, this.up.elements[0], this.up.elements[1], this.up.elements[2]);
+
+        // f' = yaw * f (matrix multiply)
+        var f1 = yaw.multiplyVector3(f);
+
+        // move camera direction
+        this.at = new Vector3([this.eye.elements[0] + f1.elements[0],
+                               this.eye.elements[1] + f1.elements[1],
+                               this.eye.elements[2] + f1.elements[2]]);
+        // PITCH
+
+        // r = f' x up (orthogonal to *updated* forward vector and up vector)
+        var r = Vector3.cross(f1, this.up);
+        r.normalize();
+
+        // rot dy degrees ( dy > 0 = counter clockwise rotation about right vector = up)
+        // NOTE: invert dy because we no longer convert coords from event to webgl
+        var pitch = new Matrix4();
+        pitch.setRotate(-dy, r.elements[0], r.elements[1], r.elements[2]);
+
+        // f'' = pitch * f' (matrix multiply)
+        var f2 = pitch.multiplyVector3(f1);
+
+        // move cam direction
+        this.at = new Vector3([this.eye.elements[0] + f2.elements[0],
+                               this.eye.elements[1] + f2.elements[1],
+                               this.eye.elements[2] + f2.elements[2]]);
+
+        this.update_view_matrix();
+    } 
 }
