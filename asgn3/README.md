@@ -19,7 +19,4 @@ Trey Lutton, tlutton@ucsc.edu
 ### Sources:
 [texture tiling GLSL code - Stack overflow](https://stackoverflow.com/questions/6473321/tiling-texture-in-shader)
 [free textures](https://little-martian.itch.io/retro-textures-pack)
-### Files:
-Assignment files: asg3.html asg3.js 
-Library files: 
- Other files: README.md (this file)
+I used Claude to generate code for the styling of the web page.
