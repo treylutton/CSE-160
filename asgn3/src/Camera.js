@@ -1,7 +1,7 @@
 class Camera {
     constructor() {
         this.fov         = 60.0;
-        this.eye         = new Vector3([3,.5,-1]);
+        this.eye         = new Vector3([-5,.5,-10]);
         this.at          = new Vector3([0,.5,0]);
         this.up          = new Vector3([0,1,0]);
         this.view_matrix = new Matrix4(); // identity
@@ -24,15 +24,16 @@ class Camera {
     is_wall(x, z) {
         // g_map is shifted from [-16, 15] to [0,31]
         // convert and take floor to get the map index the
-        // camera point is currently on. 
+        // camera point is currently on.
         var x_idx = Math.floor(x + 16);
         var z_idx = Math.floor(z + 16);
+
         // convert to 1D array index and return if that cell is empty
-        return g_map[x_idx * 32 + z_idx] > 0;
+        return (g_map[x_idx * 32 + z_idx] > 0);
     }
 
     // calculates X and Z axis collisions independently.
-    // checks if the x or z components of the scaled 
+    // checks if the x or z components of the scaled
     // forward vector intersect a cube
     apply_move(dx, dz) {
         if (!this.is_wall(this.eye.elements[0] + dx, this.eye.elements[2])) {
@@ -182,10 +183,12 @@ class Camera {
         // f'' = pitch * f' (matrix multiply)
         var f2 = pitch.multiplyVector3(f1);
 
-        // move cam direction
-        this.at = new Vector3([this.eye.elements[0] + f2.elements[0],
-                               this.eye.elements[1] + f2.elements[1],
-                               this.eye.elements[2] + f2.elements[2]]);
+        // only set at if pitch is not vertical 
+        if (Math.abs(f2.elements[1] / f2.magnitude()) < 0.995) {
+            this.at = new Vector3([this.eye.elements[0] + f2.elements[0],
+                                   this.eye.elements[1] + f2.elements[1],
+                                   this.eye.elements[2] + f2.elements[2]]);
+        }
 
         this.update_view_matrix();
     } 
