@@ -520,10 +520,10 @@ function update_ox(dt)
   if (g_ox_turn_timer <= 0) {
     if (g_anim_pause) g_anim_pause = false;
 
-    // 70% chance to wait 1 second
-    if (Math.random() < 0.7) {
+    // 50% chance to wait 1 second
+    if (Math.random() < 0.5) {
       g_anim_pause = true;
-      g_ox_turn_timer = 1000 + Math.random() * 3000;
+      g_ox_turn_timer = 1000;
     }
 
     g_ox_angle = Math.random() * 360;                // random angle
