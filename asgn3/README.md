@@ -1,4 +1,4 @@
-# README for Assignment 3 - Blocky Maze
+# README for Assignment 3 - Blocky World
 
 Trey Lutton, tlutton@ucsc.edu
 
@@ -17,6 +17,6 @@ Trey Lutton, tlutton@ucsc.edu
 - Improved performance by using static buffers for vertices and UV coordinates. 
 
 ### Sources:
-[texture tiling GLSL code - Stack overflow](https://stackoverflow.com/questions/6473321/tiling-texture-in-shader)
-[free textures](https://little-martian.itch.io/retro-textures-pack)
-I used Claude to generate code for the styling of the web page.
+- [texture tiling GLSL code - Stack overflow](https://stackoverflow.com/questions/6473321/tiling-texture-in-shader)
+- [free textures](https://little-martian.itch.io/retro-textures-pack)
+- I used Claude to generate HTML code for the style of the webpage
