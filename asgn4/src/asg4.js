@@ -735,6 +735,7 @@ function render_all_shapes() {
   floor.matrix.translate(-.5,0,-.5);
   floor.render();
 
+  /*
   // draw the sky box
   var sky = new Cube();
   sky.color = [0.2,0.2,0.3,1];
@@ -745,8 +746,26 @@ function render_all_shapes() {
   sky.matrix.scale(100,100,100);
   sky.matrix.translate(-.5,-.5,-.5);
   sky.render();
+  */
+ 
+  // draw the sky sphere
+  var skys = new Sphere();
+  skys.color = [0.2,0.2,0.3,1];
+  skys.tex_num = 1;
+  skys.matrix.rotate(180, 1,0,0);
+  skys.matrix.scale(100,100,100);
+  skys.render();
 
   draw_map();
+
+  // Draw a test sphere
+  var test = new Sphere();
+  test.color = [.2,.2,.3,1];
+  test.tex_num = 1;
+  if (g_normal_tog) test.tex_num = -3;
+  test.matrix.translate(0,10,0);
+  test.matrix.scale(5,5,5);
+  test.render();
 
   // DRAW THE OX
   // chest

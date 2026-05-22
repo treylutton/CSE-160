@@ -142,21 +142,21 @@ class Cube {
         return -1;
       }
 
-      // Bind the UV buffer to target
+      // Bind the norm buffer to target
       gl.bindBuffer(gl.ARRAY_BUFFER, Cube.norm_buf);
 
-      // write data into uv buffer object (once, normal mappings will stay constant relative to cube space)
+      // write data into norm buffer object (once, normal mappings will stay constant relative to cube space)
       gl.bufferData(gl.ARRAY_BUFFER, Cube.norm, gl.STATIC_DRAW);
 
     } else {
-      // Bind the UV buffer to target
+      // Bind the norm buffer to target
       gl.bindBuffer(gl.ARRAY_BUFFER, Cube.norm_buf);
     }
 
-    // assign buffer object to a_UV variable
+    // assign buffer object to a_Normal variable
     gl.vertexAttribPointer(a_Normal, 3, gl.FLOAT, false, 0, 0);
 
-    // enable assignment to a_UV variable
+    // enable assignment to a_Normal variable
     gl.enableVertexAttribArray(a_Normal);
 
     // pass the texture control int of this cube to frag shader
