@@ -4,18 +4,24 @@ var VSHADER_SOURCE = `
 
   attribute vec4 a_Position;
   attribute vec2 a_UV;
+  attribute vec3 a_Normal;
 
   varying vec2 v_UV;
+  varying vec3 v_Normal;
 
   uniform mat4 u_ModelMatrix;
   uniform mat4 u_GlobalRotateMatrix;
   uniform mat4 u_ViewMatrix;
   uniform mat4 u_ProjectionMatrix;
 
-  void main() 
+  void main()
   {
+    // sets position
     gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
-    v_UV = a_UV;    // pass the attribute UV to the fragment shader through the varying UV
+
+    // passes varying variables to frag shaders
+    v_UV = a_UV;
+    v_Normal = normalize(mat3(u_ModelMatrix) * a_Normal);
   }`
 
 // Fragment shader program
@@ -29,11 +35,17 @@ var FSHADER_SOURCE = `
   uniform sampler2D u_Sampler3;
   uniform int u_tex_enum;
   uniform float u_tex_color_weight;
+
+  varying vec3 v_Normal;
   varying vec2 v_UV;
 
   void main() 
   {
-    if (u_tex_enum == -2) 
+    if (u_tex_enum == -3)
+    {
+      gl_FragColor = vec4((v_Normal+1.0)/2.0, 1.0);
+    }
+    else if (u_tex_enum == -2) 
     {
       gl_FragColor = u_FragColor;                   // use color
     } 
@@ -78,6 +90,7 @@ var FSHADER_SOURCE = `
   let gl;
   let a_Position;
   let a_UV;
+  let a_Normal;
   let u_Sampler0;
   let u_Sampler1;
   let u_Sampler2;
@@ -121,6 +134,12 @@ function init_shaders() {
   a_Position = gl.getAttribLocation(gl.program, 'a_Position');
   if (a_Position < 0) {
     console.log('Failed to get the storage location of a_Position');
+    return;
+  }
+
+  a_Normal = gl.getAttribLocation(gl.program, 'a_Normal');
+  if (a_Normal < 0) {
+    console.log('Failed to get the storage location of a_Normal');
     return;
   }
 
@@ -361,19 +380,17 @@ let g_lastMouseX=0;
 let g_lastMouseY=0;
 let g_canvasColor=[0.0,0.0,0.0,1.0];
 let g_selectedScale=1.0;
-
-// asg3
+// Global Variables - World
 let g_playerSpeed=0.02;
 let g_mouse_sens=.2;
-let g_ox_speed=0.01;
 // Global Variables - Animation
-let g_walk_anim_on = false;
+let g_ox_speed=0.01;
+let g_walk_anim_on = true;
 let g_time;
 let g_poke_anim_on = false;
 let g_poke_anim_start = 0;
 let g_poke_anim_duration = 1000;
 let g_last_frame_time = 0;
-
 // Ox joint globals
 let g_selectedJoint_L_SH= 0;
 let g_selectedJoint_FL_KN=0;
@@ -389,6 +406,7 @@ let g_selectedJoint_RL_AN=0;
 let g_selectedJoint_RR_AN=0;
 let g_selectedJoint_neck =0;
 
+let g_normal_tog = true;
 
 function init_html_ui_elements() {
   // slider events 
@@ -402,7 +420,16 @@ function init_html_ui_elements() {
     render_all_shapes(); 
   });
   
-  // button events
+  // set initial button states
+  var b_anim = document.getElementById('b_anim_tog');
+  b_anim.style.backgroundColor = '#07FF07';
+  b_anim.textContent = 'Ox Movement: ON';
+
+  var b_normal = document.getElementById('b_normal_tog');
+  b_normal.style.backgroundColor = '#07FF07';
+  b_normal.textContent = 'Texture Style: Normals';
+
+  // Ox movement button
   document.getElementById('b_anim_tog').onclick = function() {
     g_walk_anim_on = !g_walk_anim_on;
 
@@ -412,6 +439,19 @@ function init_html_ui_elements() {
     } else {
       this.style.backgroundColor = '#888';
       this.textContent = 'Ox Movement: OFF';
+    }
+  }
+
+  // Normal button
+  document.getElementById('b_normal_tog').onclick = function() {
+    g_normal_tog = !g_normal_tog;
+
+    if (g_normal_tog) {
+      this.style.backgroundColor = '#07FF07';
+      this.textContent = 'Texture Style: Normals';
+    } else {
+      this.style.backgroundColor = '#888';
+      this.textContent = 'Texture Style: Textures';
     }
   }
 
@@ -697,11 +737,12 @@ function render_all_shapes() {
 
   // draw the sky box
   var sky = new Cube();
-  sky.color = [0,0,1,1];
+  sky.color = [0.2,0.2,0.3,1];
   sky.tex_num = 1;
+  if (g_normal_tog) sky.tex_num = -3;
   sky.tex_color_weight = .4;
   sky.matrix.translate(0,.75,0);
-  sky.matrix.scale(50,50,50);
+  sky.matrix.scale(100,100,100);
   sky.matrix.translate(-.5,-.5,-.5);
   sky.render();
 
@@ -711,6 +752,7 @@ function render_all_shapes() {
   // chest
   var body = new Cube();
   body.color = c_body;
+  if (g_normal_tog) body.tex_num = -3;
   body.matrix = new Matrix4(g_ox_base); // start from ox world transform
   body.matrix.translate(-0.35, -0.3, 0);
   body.matrix.scale(0.7, 0.6, 1.2);
@@ -773,6 +815,7 @@ function draw_head(anc_x, anc_y, anc_z, joint_angle_neck, axis_x) {
   // head
   var head = new Cube();
   head.color = c_body;
+  if (g_normal_tog) head.tex_num = -3;
   head.matrix = new Matrix4(g_ox_base); // start from ox world transform
   head.matrix.translate(anc_x, anc_y, anc_z);
   head.matrix.translate(.2,0,.4);
@@ -789,6 +832,7 @@ function draw_head(anc_x, anc_y, anc_z, joint_angle_neck, axis_x) {
   // nose/snout
   var nose = new Cube();
   nose.color = c_body; 
+  nose.tex_num = head.tex_num;
   nose.matrix = head_matrix;
   nose.matrix.translate(-.025,-0.001,.1);           // small delta Y to rm Y fighting on bottom of jaw
   nose.matrix.scale(.45,.2,-.2);
@@ -844,7 +888,8 @@ function draw_head(anc_x, anc_y, anc_z, joint_angle_neck, axis_x) {
 function draw_leg(anc_x, anc_y, anc_z, joint_angle_sh, joint_angle_kn, joint_angle_an, left_side, rear_leg) {
   // draw the shoulder (or hip)
   var shoulder = new Cube();
-  shoulder.color = c_body;                                    // set the color
+  shoulder.color = c_body;
+  if (g_normal_tog) shoulder.tex_num = -3;                    
   shoulder.matrix = new Matrix4(g_ox_base);                   // start from ox world transform
   shoulder.matrix.translate(anc_x, anc_y, anc_z);             // move to the anchor point (final translate)
   var flipped_x = -1;                                         // assume right leg
@@ -861,7 +906,8 @@ function draw_leg(anc_x, anc_y, anc_z, joint_angle_sh, joint_angle_kn, joint_ang
 
   // draw the upper leg
   var upper_leg = new Cube();                                 
-  upper_leg.color = c_body;                                   
+  upper_leg.color = c_body;
+  upper_leg.tex_num = shoulder.tex_num;                                   
   upper_leg.matrix = shoulder_matrix;                         // rebase coordinates relative to shoulder
   if (rear_leg) {
     upper_leg.matrix.translate(0,0,.125);                      // center upper leg to shoulder if rear
@@ -874,6 +920,7 @@ function draw_leg(anc_x, anc_y, anc_z, joint_angle_sh, joint_angle_kn, joint_ang
   // draw lower leg
   var lower_leg = new Cube();
   lower_leg.color = c_body;
+  lower_leg.tex_num = shoulder.tex_num;
   lower_leg.matrix = upper_leg_matrix;                        // rebase coordinates relative to upper leg
   if (rear_leg) {
     // +x +z
@@ -893,6 +940,7 @@ function draw_leg(anc_x, anc_y, anc_z, joint_angle_sh, joint_angle_kn, joint_ang
   // draw the hoof
   var hoof = new Cube();
   hoof.color = c_hoof;
+  hoof.tex_num = shoulder.tex_num;
   hoof.matrix = lower_leg_matrix;                             // rebase coordinates relative to lower leg
   hoof.matrix.translate(0, -.1,0);                            // move to final pos
   hoof.matrix.translate(0,.1,0);
