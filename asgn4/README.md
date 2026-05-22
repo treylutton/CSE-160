@@ -1,13 +1,2 @@
-README for CSE 160 assignment 4
+# README for CSE160 Assignment 4 - Lighting
 
-Trey Lutton
-tlutton@ucsc.edu
-
-Notes to grader:
-
-Sources:
-    
-Files:
-    Assignment files: 
-    Test files: 
-    Other files: README.md (this file)

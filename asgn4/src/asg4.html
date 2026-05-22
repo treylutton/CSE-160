@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Lighting - CSE160</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        background-color: rgb(101, 121, 134);
+        color: #ffffff;
+        font-family: Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px 16px 48px;
+        gap: 20px;
+      }
+
+      header { text-align: center; }
+      header h1 { font-size: 1.6rem; color: #929191; }
+      header p  { font-size: 0.85rem; color: #000000; margin-top: 4px; }
+
+      #webgl {
+        display: block;
+        border: 2px solid #ffffff;
+        cursor: crosshair;
+      }
+
+      .controls-row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      button {
+        padding: 6px 14px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.9rem;
+        background-color: #888;
+        color: #fff;
+      }
+
+      /* --- collapsible settings tab --- */
+      details.settings {
+        width: 100%;
+        max-width: 640px;
+        background: rgba(0,0,0,0.25);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      details.settings summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 10px 16px;
+        font-size: 0.85rem;
+        font-weight: bold;
+        color: #ccc;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      details.settings summary::before {
+        content: '▶';
+        font-size: 0.65rem;
+        transition: transform 0.2s;
+      }
+
+      details.settings[open] summary::before { transform: rotate(90deg); }
+
+      /* --- slider grid inside the tab --- */
+      .slider-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px 24px;
+        padding: 14px 20px 20px;
+      }
+
+      .slider-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 0.8rem;
+        color: #ccc;
+      }
+
+      .slider-item label {
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .slider-item label span {
+        color: #fff;
+        font-weight: bold;
+      }
+
+      /* custom range track + thumb */
+      input[type=range] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 4px;
+        background: #555;
+        border-radius: 2px;
+        outline: none;
+      }
+
+      input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #7ecfff;
+        cursor: pointer;
+      }
+
+      input[type=range]::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border: none;
+        border-radius: 50%;
+        background: #7ecfff;
+        cursor: pointer;
+      }
+
+      section {
+        width: 100%;
+        max-width: 640px;
+      }
+
+      section h2 {
+        font-size: 0.95rem;
+        color: #333333;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #333;
+        padding-bottom: 4px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+
+      th, td {
+        text-align: left;
+        padding: 6px 10px;
+        border-bottom: 1px solid #2d2d2d;
+      }
+
+      th { color: #d6cdcd; font-weight: normal; width: 40%; }
+      td { color: #ddd; }
+
+      kbd {
+        display: inline-block;
+        background: #333;
+        border: 1px solid #555;
+        border-radius: 3px;
+        padding: 1px 6px;
+        font-size: 0.8rem;
+        font-family: monospace;
+      }
+
+      #p_performance {
+        font-size: 0.8rem;
+        color: #fff;
+        font-family: monospace;
+      }
+
+      .note { font-size: 0.85rem; color: #fffafa; line-height: 1.6; }
+    </style>
+  </head>
+
+  <body onload="main()">
+
+    <header>
+      <h1>Assignment 4 &mdash; Lighting</h1>
+      <p>Trey Lutton &nbsp;|&nbsp; tlutton@ucsc.edu &nbsp;|&nbsp; CSE160 &mdash; Spring 2026</p>
+    </header>
+
+    <canvas id="webgl" width="600" height="600">
+      Please use a browser that supports "canvas"
+    </canvas>
+
+    <!-- Animation toggle -->
+    <div class="controls-row">
+      <button type="button" id="b_anim_tog" style="background-color: #848584; color: #000;">Ox Movement: OFF</button>
+    </div>
+
+    <!-- Settings tab -->
+    <details class="settings">
+      <summary>Settings</summary>
+      <div class="slider-group">
+
+        <div class="slider-item">
+          <label>Player Speed <span id="v_player_speed">2</span></label>
+          <input type="range" min="0" max="10" value="2" id="s_player_speed"
+                 oninput="document.getElementById('v_player_speed').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>Mouse Sensitivity <span id="v_mouse_sens">40</span></label>
+          <input type="range" min="10" max="100" value="40" id="s_mouse_sens"
+                 oninput="document.getElementById('v_mouse_sens').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>FOV <span id="v_fov">60</span></label>
+          <input type="range" min="60" max="110" value="60" id="s_fov"
+                 oninput="document.getElementById('v_fov').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>Ox Speed <span id="v_ox_speed">10</span></label>
+          <input type="range" min="5" max="25" value="10" id="s_ox_speed"
+                 oninput="document.getElementById('v_ox_speed').textContent = this.value">
+        </div>
+
+      </div>
+    </details>
+
+    <!-- Performance -->
+    <section>
+      <h2>Performance</h2>
+      <p id="p_performance">No stats yet.</p>
+    </section>
+
+    <!-- Controls -->
+    <section>
+      <h2>Controls</h2>
+      <table>
+        <tr><th>Move</th>          <td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></td></tr>
+        <tr><th>Pan camera</th>    <td><kbd>Q</kbd> / <kbd>E</kbd> or mouse (with cursor lock)</td></tr>
+        <tr><th>Lock cursor</th>   <td><kbd>Shift</kbd> + Left Click on canvas</td></tr>
+        <tr><th>Unlock cursor</th>   <td><kbd>ESC</kbd> (while locked)</td></tr>
+        <tr><th>Remove block</th>  <td>Left Click (while cursor locked)</td></tr>
+        <tr><th>Poke ox</th>       <td><kbd>Shift</kbd> + Right Click on canvas</td></tr>
+      </table>
+    </section>
+
+    <!-- Notes -->
+    <section>
+      <h2>Notes</h2>
+      <p class="note">
+        Improved performance by using a static vertex buffer and a static UV coordinate vector.</p><p class="note">
+        Added collision detection that prevents player from walking through objects.</p><p class="note">
+        Added a randomized movement algorithm for the ox using the animation from asg2.</p><p class="note">
+        Added collision detection between the ox and blocks.</p><p class="note">
+        
+      </p>
+    </section>
+
+    <script src="../lib/webgl-utils.js"></script>
+    <script src="../lib/webgl-debug.js"></script>
+    <script src="../lib/cuon-utils.js"></script>
+    <script src="../lib/cuon-matrix-cse160.js"></script>
+    <script src="Triangle.js"></script>
+    <script src="Cube.js"></script>
+    <script src="Pyramid.js"></script>
+    <script src="Camera.js"></script>
+    <script src="asg4.js"></script>
+  </body>
+</html>
