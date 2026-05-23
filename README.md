@@ -13,8 +13,8 @@ WebGL assignments exploring 2D/3D rendering, transformations, animation, texturi
 |[0](https://treylutton.github.io/CSE-160/asgn0/src/asg0.html)| Vector operation library and WebGL basics |
 |[1](https://treylutton.github.io/CSE-160/asgn1/src/asg1.html)| 2D paint program |
 |[2](https://treylutton.github.io/CSE-160/asgn2/src/asg2.html)| 3D "Blocky Animal" - hierarchical graphics, animation |
-|[3](https://treylutton.github.io/CSE-160/asgn2/src/asg2.html)| 3D "Blocky World" - textures, camera, collision detection |
-|[4](asgn4/)| - |
+|[3](https://treylutton.github.io/CSE-160/asgn3/src/asg3.html)| 3D "Blocky World" - textures, camera, collision detection |
+|[4](https://treylutton.github.io/CSE-160/asgn4/src/asg4.html)| Lighting - normal vectors, the Phong lighting model, loading .obj files |
 |[5](asgn5/)| - |
 
 ---
