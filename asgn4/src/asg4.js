@@ -638,7 +638,6 @@ var g_map = [
   4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,
 ];
 // Global .obj file models
-let g_model_head;
 let g_model_dragon;
 let g_model_teapot;
 let g_model_trumpet;
@@ -646,7 +645,6 @@ let g_which_model = "sphere";
 let g_model_color = [.4,.4,.4,1];
 
 function init_obj_models() {
-  g_model_head = new Model(gl, "../lib/obj/head.obj");
   g_model_dragon = new Model(gl, "../lib/obj/dragon.obj");
   g_model_teapot = new Model(gl, "../lib/obj/teapot.obj");
   g_model_trumpet = new Model(gl, "../lib/obj/trumpet.obj");
