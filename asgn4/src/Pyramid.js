@@ -6,6 +6,8 @@ class Pyramid {
     this.type = 'prism';
     this.color = [1.0, 1.0, 1.0, 1.0];
     this.matrix = new Matrix4();
+    this.lighting_enabled = true;
+    this.normal_matrix = new Matrix4();
   }
 
   static generateVertices() {
@@ -18,12 +20,37 @@ class Pyramid {
                                          1,0,0,   1,1,0,   .5,.5,1,     // right 12
                                          1,1,0,   0,1,0,   .5,.5,1,     // back 15
                                          0,1,0,   0,0,0,   .5,.5,1]);   // left 18
+
+      var faces = [
+      [[0,0,0], [1,1,0],     [1,0,0]],  // base tri 1
+      [[0,0,0], [0,1,0],     [1,1,0]],  // base tri 2
+      [[0,0,0], [1,0,0],   [.5,.5,1]],  // front
+      [[1,0,0], [1,1,0],   [.5,.5,1]],  // right
+      [[1,1,0], [0,1,0],   [.5,.5,1]],  // back
+      [[0,1,0], [0,0,0],   [.5,.5,1]],  // left
+    ];
+
+    var norms = [];
+    for (var face of faces) {
+      var edge1 = new Vector3(face[1]).sub(new Vector3(face[0]));
+      var edge2 = new Vector3(face[2]).sub(new Vector3(face[0]));
+      var normal = Array.from(Vector3.cross(edge1, edge2).normalize().elements);
+      norms = norms.concat(normal, normal, normal);
+    }
+    Pyramid.norm = new Float32Array(norms);
   }
 
   render() {
     // get color
     var rgba = this.color;
-    
+
+    // toggle lighting
+    gl.uniform1i(u_lighting_enabled, this.lighting_enabled);
+
+    // set the normal matrix
+    this.normal_matrix.setInverseOf(this.matrix).transpose();
+    gl.uniformMatrix4fv(u_NormalMatrix, false, this.normal_matrix.elements);
+
     // get vertices (once)
     if (Pyramid.vertices == null) {
       Pyramid.generateVertices();
@@ -52,28 +79,38 @@ class Pyramid {
     // Enable the assignment to a_Position variable
     gl.enableVertexAttribArray(a_Position);
 
+    // create buffer (once)
+    if (Pyramid.norm_buf == null) {
+      Pyramid.norm_buf = gl.createBuffer();
+      if (!Pyramid.norm_buf) {
+        console.log('Failed to create the Pyramid normal buffer object.');
+        return -1;
+      }
+
+      // Bind the buffer object to target
+      gl.bindBuffer(gl.ARRAY_BUFFER, Pyramid.norm_buf);
+
+      // Write date into the buffer object (once, pyramid vertices are constant)
+      gl.bufferData(gl.ARRAY_BUFFER, Pyramid.norm, gl.DYNAMIC_DRAW);
+    } else {
+      // Bind the buffer object to target
+      gl.bindBuffer(gl.ARRAY_BUFFER, Pyramid.norm_buf);
+    }
+
+    // Assign the buffer object to a_Position variable
+    gl.vertexAttribPointer(a_Normal, 3, gl.FLOAT, false, 0, 0);
+    // Enable the assignment to a_Position variable
+    gl.enableVertexAttribArray(a_Normal);
+
     // pass the matrix of this cube to uniform shader variable
     gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
 
-    // Base
-    gl.uniform4f(u_FragColor, rgba[0]*0.5, rgba[1]*0.5, rgba[2]*0.5, rgba[3]);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);  // verts 0 ------ 6 => base of pyramid 
-
-    // Front side
-    gl.uniform4f(u_FragColor, rgba[0]*0.9, rgba[1]*0.9, rgba[2]*0.9, rgba[3]);
-    gl.drawArrays(gl.TRIANGLES, 6, 3);  // verts 6 --- 9 => front of pyramid 
-
-    // Right side
-    gl.uniform4f(u_FragColor, rgba[0]*0.7, rgba[1]*0.7, rgba[2]*0.7, rgba[3]);
-    gl.drawArrays(gl.TRIANGLES, 9, 3);  // verts 9 --- 12 => right of pyramid 
-
-    // Back side
-    gl.uniform4f(u_FragColor, rgba[0]*0.8, rgba[1]*0.8, rgba[2]*0.8, rgba[3]);
-    gl.drawArrays(gl.TRIANGLES, 12, 3);  // verts 12 --- 15 => back of pyramid 
-
-    // Left side
-    gl.uniform4f(u_FragColor, rgba[0]*0.6, rgba[1]*0.6, rgba[2]*0.6, rgba[3]);
-    gl.drawArrays(gl.TRIANGLES, 15, 3);  // verts 15 --- 18 => front of pyramid 
+    // pass color to shader
+    gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
+    
+    // draw the pyramid
+    gl.drawArrays(gl.TRIANGLES, 0, 18);
 }
 }
+
 

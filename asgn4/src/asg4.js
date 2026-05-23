@@ -8,11 +8,13 @@ var VSHADER_SOURCE = `
 
   varying vec2 v_UV;
   varying vec3 v_Normal;
+  varying vec4 v_vertexPosition;
 
   uniform mat4 u_ModelMatrix;
   uniform mat4 u_GlobalRotateMatrix;
   uniform mat4 u_ViewMatrix;
   uniform mat4 u_ProjectionMatrix;
+  uniform mat4 u_NormalMatrix;
 
   void main()
   {
@@ -21,7 +23,8 @@ var VSHADER_SOURCE = `
 
     // passes varying variables to frag shaders
     v_UV = a_UV;
-    v_Normal = normalize(mat3(u_ModelMatrix) * a_Normal);
+    v_Normal = normalize(vec3(u_NormalMatrix * vec4(a_Normal, 1.0)));
+    v_vertexPosition = u_ModelMatrix * a_Position;  // conver to world coords
   }`
 
 // Fragment shader program
@@ -35,9 +38,14 @@ var FSHADER_SOURCE = `
   uniform sampler2D u_Sampler3;
   uniform int u_tex_enum;
   uniform float u_tex_color_weight;
+  uniform vec3 u_lightPosition;
+  uniform vec3 u_cameraPosition;
+  uniform bool u_lighting_enabled;
+  uniform bool u_global_lighting_enabled;
 
   varying vec3 v_Normal;
   varying vec2 v_UV;
+  varying vec4 v_vertexPosition;
 
   void main() 
   {
@@ -82,6 +90,35 @@ var FSHADER_SOURCE = `
     {
       gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);      // error - red
     }
+
+    // LIGHTING
+    if (u_global_lighting_enabled) 
+    {
+      if (u_lighting_enabled) 
+      {
+      // tuning variables
+      float Ka = 0.2;
+      float Kd = 1.0;
+      float Ks = 1.0;
+      float distance_attenuation_factor = 0.01;
+
+      // component calculations
+      vec3 lightVector = u_lightPosition - vec3(v_vertexPosition);
+      float r = length(lightVector);
+      vec3 L = normalize(lightVector);
+      float NdotL = max(dot(v_Normal, L), 0.0);
+      float attenuation = 1.0 / (1.0 + (distance_attenuation_factor * (r * r)));
+      vec3 E = normalize(u_cameraPosition - vec3(v_vertexPosition));
+      vec3 R = reflect(-L, v_Normal);
+
+      vec4 ambient = gl_FragColor * Ka;
+      vec4 diffuse = gl_FragColor * Kd * NdotL * attenuation;
+      vec4 specular = gl_FragColor * Ks * pow(max(dot(E, R), 0.0), 10.0);
+
+      gl_FragColor = ambient + diffuse + specular;
+      gl_FragColor.a = 1.0;
+      }
+    }
   }`
 
   // Global Variables
@@ -102,6 +139,11 @@ var FSHADER_SOURCE = `
   let u_GlobalRotateMatrix;
   let u_ViewMatrix;
   let u_ProjectionMatrix;
+  let u_NormalMatrix;
+  let u_lightPosition;
+  let u_cameraPosition;
+  let u_lighting_enabled;
+  let u_global_lighting_enabled;
 
 // init function for webgl
 function init_webgl() {
@@ -157,10 +199,45 @@ function init_shaders() {
     return;
   }
 
+  // Get the storage location of u_FragColor
+  u_lighting_enabled = gl.getUniformLocation(gl.program, 'u_lighting_enabled');
+  if (!u_lighting_enabled) {
+    console.log('Failed to get the storage location of u_lighting_enabled');
+    return;
+  }
+
+  // Get the storage location of u_FragColor
+  u_global_lighting_enabled = gl.getUniformLocation(gl.program, 'u_global_lighting_enabled');
+  if (!u_global_lighting_enabled) {
+    console.log('Failed to get the storage location of u_global_lighting_enabled');
+    return;
+  }
+
+  // Get the storage location of u_lightPosition
+  u_lightPosition = gl.getUniformLocation(gl.program, 'u_lightPosition');
+  if (u_lightPosition < 0) {
+    console.log('Failed to get the storage location of u_lightPosition');
+    return;
+  }
+
+  // Get the storage location of u_lightPosition
+  u_cameraPosition = gl.getUniformLocation(gl.program, 'u_cameraPosition');
+  if (u_cameraPosition < 0) {
+    console.log('Failed to get the storage location of u_cameraPosition');
+    return;
+  }
+
   // Get the storage location of u_ModelMatrix
   u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
   if (!u_ModelMatrix) {
     console.log('Failed to get the storage location of u_ModelMatrix');
+    return;
+  }
+
+  // Get the storage location of u_NormalMatrix
+  u_NormalMatrix = gl.getUniformLocation(gl.program, 'u_NormalMatrix');
+  if (!u_NormalMatrix) {
+    console.log('Failed to get the storage location of u_NormalMatrix');
     return;
   }
 
@@ -256,10 +333,10 @@ function init_textures() {
   i_wood.onload = function() { load_img_TEXTURE2(i_wood);};
   i_brick.onload = function() { load_img_TEXTURE3(i_brick);};
 
-  i_grass.src = '../lib/tex/Grass_04.png';
-  i_sky.src = '../lib/tex/skybox.png';
-  i_wood.src = '../lib/tex/WOOD_1C.PNG';
-  i_brick.src = '../lib/tex/BRICK_1A.PNG';
+  i_grass.src = '../lib/tex/grass.png';
+  i_sky.src = '../lib/tex/sky-day.png';
+  i_wood.src = '../lib/tex/wood.png';
+  i_brick.src = '../lib/tex/stone-brick.png';
 }
 
 function load_img_TEXTURE0(image) {
@@ -383,9 +460,12 @@ let g_selectedScale=1.0;
 // Global Variables - World
 let g_playerSpeed=0.02;
 let g_mouse_sens=.2;
+let g_lightX=0, g_lightY=10, g_lightZ=0;
+let g_lightAngle=0;
 // Global Variables - Animation
 let g_ox_speed=0.01;
-let g_walk_anim_on = true;
+let g_walk_anim_on = false;
+let g_light_anim_on = false;
 let g_time;
 let g_poke_anim_on = false;
 let g_poke_anim_start = 0;
@@ -405,14 +485,17 @@ let g_selectedJoint_FR_AN=0;
 let g_selectedJoint_RL_AN=0;
 let g_selectedJoint_RR_AN=0;
 let g_selectedJoint_neck =0;
-
-let g_normal_tog = true;
+let g_global_lighting_enabled=1;
+let g_normal_tog = false;
 
 function init_html_ui_elements() {
   // slider events 
   document.getElementById('s_player_speed').addEventListener('input', function() { g_playerSpeed = this.value / 100.0; render_all_shapes(); });
   document.getElementById('s_mouse_sens').addEventListener('input', function() { g_mouse_sens = this.value / 100.0; render_all_shapes(); });
   document.getElementById('s_ox_speed').addEventListener('input', function() { g_ox_speed = this.value / 1000.0; render_all_shapes(); });
+  document.getElementById('s_light_x').addEventListener('input', function() { g_lightX = this.value; render_all_shapes(); });
+  document.getElementById('s_light_y').addEventListener('input', function() { g_lightY = this.value; render_all_shapes(); });
+  document.getElementById('s_light_z').addEventListener('input', function() { g_lightZ = this.value; render_all_shapes(); });
   document.getElementById('s_fov').addEventListener('input', function() 
   {
     camera.fov = this.value;
@@ -420,14 +503,6 @@ function init_html_ui_elements() {
     render_all_shapes(); 
   });
   
-  // set initial button states
-  var b_anim = document.getElementById('b_anim_tog');
-  b_anim.style.backgroundColor = '#07FF07';
-  b_anim.textContent = 'Ox Movement: ON';
-
-  var b_normal = document.getElementById('b_normal_tog');
-  b_normal.style.backgroundColor = '#07FF07';
-  b_normal.textContent = 'Texture Style: Normals';
 
   // Ox movement button
   document.getElementById('b_anim_tog').onclick = function() {
@@ -442,16 +517,42 @@ function init_html_ui_elements() {
     }
   }
 
+  // light animation button
+  document.getElementById('b_light_anim_tog').onclick = function() {
+    g_light_anim_on = !g_light_anim_on;
+
+    if (g_light_anim_on) {
+      this.style.backgroundColor = '#07FF07';
+      this.textContent = 'Light Animation: ON';
+    } else {
+      this.style.backgroundColor = '#888';
+      this.textContent = 'Light Animation: OFF';
+    }
+  }
+
   // Normal button
   document.getElementById('b_normal_tog').onclick = function() {
     g_normal_tog = !g_normal_tog;
 
     if (g_normal_tog) {
       this.style.backgroundColor = '#07FF07';
-      this.textContent = 'Texture Style: Normals';
+      this.textContent = 'Debug Normals: ON';
     } else {
       this.style.backgroundColor = '#888';
-      this.textContent = 'Texture Style: Textures';
+      this.textContent = 'Debug Normals: OFF';
+    }
+  }
+
+  // light animation button
+  document.getElementById('b_lighting_tog').onclick = function() {
+    g_global_lighting_enabled = !g_global_lighting_enabled;
+
+    if (g_global_lighting_enabled) {
+      this.style.backgroundColor = '#07FF07';
+      this.textContent = 'Light Animation: ON';
+    } else {
+      this.style.backgroundColor = '#888';
+      this.textContent = 'Light Animation: OFF';
     }
   }
 
@@ -509,6 +610,8 @@ function main() {
 
   render_all_shapes();
 
+  g_time = performance.now();
+
   // start animation (infinite loop)
   requestAnimationFrame(tick);
 }
@@ -550,6 +653,13 @@ function rm_block() {
   }
 }
 let g_anim_pause = false;
+
+function update_light(dt) {
+  g_lightAngle += dt * 0.002;   // ~1 full revolution per ~3 seconds
+  g_lightX = 10 * Math.cos(g_lightAngle);
+  g_lightY = 15;
+  g_lightZ = 10 * Math.sin(g_lightAngle);
+}
 
 function update_ox(dt) 
 {
@@ -630,6 +740,7 @@ function tick() {
   g_time = start_time;                // update g_time
   process_keys();
   if (g_walk_anim_on) update_ox(duration);
+  if (g_light_anim_on) update_light(duration);
   render_all_shapes();                // draw everything
   text_to_html("ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration), 'p_performance');
   requestAnimationFrame(tick);    // tell the browser to call again
@@ -661,7 +772,7 @@ var g_ox_base = new Matrix4().translate(g_ox_x, 0, g_ox_z).rotate(g_ox_angle, 0,
 // global map
 var g_map = [
   5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,
-  4,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,5,
+  4,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,5,
   5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
   4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
   5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
@@ -690,7 +801,7 @@ var g_map = [
   4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
   5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
   4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,4,
+  5,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4,
   4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,
 ];
 
@@ -725,46 +836,54 @@ function render_all_shapes() {
                                   .scale(g_selectedScale, g_selectedScale, g_selectedScale);
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, global_rotate_matrix.elements);
 
+  // pass light position to fragment shader
+  gl.uniform3f(u_lightPosition, g_lightX, g_lightY, g_lightZ);
+
+  // pass camera position to fragment shader
+  gl.uniform3f(u_cameraPosition, camera.eye.elements[0], camera.eye.elements[1], camera.eye.elements[2]);
+
+  // pass lighting toggle
+  gl.uniform1i(u_global_lighting_enabled, g_global_lighting_enabled);
+
+  // draw the moving light
+  var moving_light = new Cube();
+  moving_light.lighting_enabled = 1;
+  moving_light.color = [5,5,0,1];
+  moving_light.matrix.translate(g_lightX, g_lightY, g_lightZ);
+  moving_light.matrix.scale(-.3,-.3,-.3);
+  moving_light.matrix.translate(-.5,0,-.5);      // translate to origin
+  moving_light.render();
+
   // draw the ground plane
   var floor = new Cube();
   floor.color = [0.0,0.0,0.0,1.0];
   floor.tex_num = 0;
   floor.tex_color_weight = .7;
   floor.matrix.translate(0,-1,0);
-  floor.matrix.scale(32,0,32);
+  floor.matrix.scale(32,0.001,32);      // offsetting by 0.001 fixes lighting on ground
   floor.matrix.translate(-.5,0,-.5);
   floor.render();
 
-  /*
-  // draw the sky box
-  var sky = new Cube();
-  sky.color = [0.2,0.2,0.3,1];
-  sky.tex_num = 1;
-  if (g_normal_tog) sky.tex_num = -3;
-  sky.tex_color_weight = .4;
-  sky.matrix.translate(0,.75,0);
-  sky.matrix.scale(100,100,100);
-  sky.matrix.translate(-.5,-.5,-.5);
-  sky.render();
-  */
- 
   // draw the sky sphere
   var skys = new Sphere();
-  skys.color = [0.2,0.2,0.3,1];
+  skys.color = [0,0,0,1];
   skys.tex_num = 1;
-  skys.matrix.rotate(180, 1,0,0);
+  skys.tex_color_weight = 0.05;
+  skys.lighting_enabled = 0;
+  skys.matrix.rotate(180, 1,0,1);
   skys.matrix.scale(100,100,100);
   skys.render();
 
+  // draw all the cubes in the map
   draw_map();
 
   // Draw a test sphere
   var test = new Sphere();
-  test.color = [.2,.2,.3,1];
-  test.tex_num = 1;
+  test.color = [.2,.2,.2,1];
+  test.tex_num = -2;
   if (g_normal_tog) test.tex_num = -3;
-  test.matrix.translate(0,10,0);
-  test.matrix.scale(5,5,5);
+  test.matrix.translate(0,4,0);
+  test.matrix.scale(2,2,2);
   test.render();
 
   // DRAW THE OX
@@ -871,8 +990,10 @@ function draw_head(anc_x, anc_y, anc_z, joint_angle_neck, axis_x) {
   eye_r.matrix.scale(.2,.2,.2);
   eye_r.render();
 
+  
   // horns
   var horn_ll = new Cube();
+  if (g_normal_tog) horn_ll.tex_num = -3;
   horn_ll.color = c_horn;
   horn_ll.matrix = new Matrix4(head_matrix);
   horn_ll.matrix.translate(0.05,1.3,0);
@@ -902,6 +1023,7 @@ function draw_head(anc_x, anc_y, anc_z, joint_angle_neck, axis_x) {
   horn_ur.matrix.rotate(-90,1,0,0);
   horn_ur.matrix.scale(.15,.3,1);
   horn_ur.render();
+  
 }
 
 function draw_leg(anc_x, anc_y, anc_z, joint_angle_sh, joint_angle_kn, joint_angle_an, left_side, rear_leg) {

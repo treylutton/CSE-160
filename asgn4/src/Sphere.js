@@ -13,6 +13,8 @@ class Sphere {
     this.tex_num = -2;
     this.matrix  = new Matrix4();
     this.tex_color_weight = 0.5;
+    this.lighting_enabled = true;
+    this.normal_matrix = new Matrix4();
   }
 
   static generateCoordinates() {
@@ -50,6 +52,13 @@ class Sphere {
   render() {
     // get color
     var rgba = this.color;    
+
+    // toggle lighting
+    gl.uniform1i(u_lighting_enabled, this.lighting_enabled);
+
+    // set the normal matrix
+    this.normal_matrix.setInverseOf(this.matrix).transpose();
+    gl.uniformMatrix4fv(u_NormalMatrix, false, this.normal_matrix.elements);
 
     // get coordinates (once)
     if (Sphere.vertices == null) {

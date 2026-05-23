@@ -195,14 +195,12 @@
       Please use a browser that supports "canvas"
     </canvas>
 
-    <!-- Animation toggle -->
+    <!-- toggles -->
     <div class="controls-row">
       <button type="button" id="b_anim_tog" style="background-color: #848584; color: #000;">Ox Movement: OFF</button>
-    </div>
-
-    <!-- Normal toggle -->
-    <div class="controls-row">
-      <button type="button" id="b_normal_tog" style="background-color: #848584; color: #000;">Texture Style: Textures</button>
+      <button type="button" id="b_normal_tog" style="background-color: #848584; color: #000;">Debug Normals</button>
+      <button type="button" id="b_light_anim_tog" style="background-color: #848584; color: #000;">Light Animation: OFF</button>
+      <button type="button" id="b_lighting_tog" style="background-color: #07FF07; color: #000;">Lighting: ON</button>
     </div>
 
     <!-- Settings tab -->
@@ -232,6 +230,32 @@
           <label>Ox Speed <span id="v_ox_speed">10</span></label>
           <input type="range" min="5" max="25" value="10" id="s_ox_speed"
                  oninput="document.getElementById('v_ox_speed').textContent = this.value">
+        </div>
+
+      </div>
+    </details>
+
+    <!-- Light Settings tab -->
+    <details class="settings">
+      <summary>Light Position</summary>
+      <div class="slider-group">
+
+        <div class="slider-item">
+          <label>Light X <span id="v_light_x">0</span></label>
+          <input type="range" min="-16" max="16" value="0" id="s_light_x"
+                 oninput="document.getElementById('v_light_x').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>Light Y <span id="v_light_y">10</span></label>
+          <input type="range" min="0" max="20" value="5" id="s_light_y"
+                 oninput="document.getElementById('v_light_y').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>Light Z <span id="v_light_z">0</span></label>
+          <input type="range" min="-16" max="16" value="0" id="s_light_z"
+                 oninput="document.getElementById('v_light_z').textContent = this.value">
         </div>
 
       </div>
