@@ -201,6 +201,7 @@
       <button type="button" id="b_normal_tog" style="background-color: #848584; color: #000;">Debug Normals</button>
       <button type="button" id="b_light_anim_tog" style="background-color: #848584; color: #000;">Light Animation: OFF</button>
       <button type="button" id="b_lighting_tog" style="background-color: #07FF07; color: #000;">Lighting: ON</button>
+      <button type="button" id="b_spotlight_tog" style="background-color: #848584; color: #000;">Spotlight: OFF</button>
     </div>
 
     <!-- Settings tab -->
@@ -256,6 +257,44 @@
           <label>Light Z <span id="v_light_z">0</span></label>
           <input type="range" min="-16" max="16" value="0" id="s_light_z"
                  oninput="document.getElementById('v_light_z').textContent = this.value">
+        </div>
+
+      </div>
+    </details>
+
+    <!-- Spotlight Settings tab -->
+    <details class="settings">
+      <summary>Spotlight Settings</summary>
+      <div class="slider-group">
+
+        <div class="slider-item">
+          <label>Exponent <span id="v_spot_exponent">10</span></label>
+          <input type="range" min="1" max="100" value="10" id="s_spot_exponent"
+                 oninput="document.getElementById('v_spot_exponent').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>Cos Cutoff <span id="v_spot_cutoff">0.99</span></label>
+          <input type="range" min="900" max="1000" value="990" id="s_spot_cutoff"
+                 oninput="document.getElementById('v_spot_cutoff').textContent = (this.value/1000).toFixed(2)">
+        </div>
+
+        <div class="slider-item">
+          <label>R <span id="v_spot_r">10</span></label>
+          <input type="range" min="0" max="100" value="10" id="s_spot_r"
+                 oninput="document.getElementById('v_spot_r').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>G <span id="v_spot_g">20</span></label>
+          <input type="range" min="0" max="100" value="10" id="s_spot_g"
+                 oninput="document.getElementById('v_spot_g').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>B <span id="v_spot_b">20</span></label>
+          <input type="range" min="0" max="100" value="10" id="s_spot_b"
+                 oninput="document.getElementById('v_spot_b').textContent = this.value">
         </div>
 
       </div>

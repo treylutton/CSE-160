@@ -43,6 +43,14 @@ var FSHADER_SOURCE = `
   uniform bool u_lighting_enabled;
   uniform bool u_global_lighting_enabled;
 
+  // spot light
+  uniform bool u_spotlight_enabled;
+  uniform vec4 u_spotlight_position;
+  uniform vec4 u_spotlight_color;
+  uniform vec3 u_spotlight_direction;
+  uniform float u_spotlight_cos_cutoff;
+  uniform float u_spotlight_exponent;
+
   varying vec3 v_Normal;
   varying vec2 v_UV;
   varying vec4 v_vertexPosition;
@@ -117,9 +125,38 @@ var FSHADER_SOURCE = `
 
       gl_FragColor = ambient + diffuse + specular;
       gl_FragColor.a = 1.0;
+
+      // SPOTLIGHT
+      if (u_spotlight_enabled)
+      {
+        float spotFactor = 1.0;  // multiplier to account for spotlight
+        if ( u_spotlight_position.w == 0.0 ) 
+        {
+          L = normalize( u_spotlight_position.xyz );
+        }
+        else 
+        {
+          L = normalize( u_spotlight_position.xyz / u_spotlight_position.w - vec3(v_vertexPosition));
+          if (u_spotlight_cos_cutoff > 0.0) // the light is a spotlight 
+          { 
+            vec3 D = -1.0 * normalize(u_spotlight_direction);
+            float spotCosine = dot(D,L);
+            if (spotCosine >= u_spotlight_cos_cutoff) 
+            { 
+              spotFactor = pow(spotCosine, u_spotlight_exponent);
+            }
+            else  // The point is outside the cone of light from the spotlight. 
+            { 
+              spotFactor = 0.0; // The light will add no color to the point.
+            }
+          }
+        }
+
+        gl_FragColor = gl_FragColor  + (u_spotlight_color * spotFactor);
       }
     }
-  }`
+  }
+}`
 
   // Global Variables
   let canvas;
@@ -144,6 +181,12 @@ var FSHADER_SOURCE = `
   let u_cameraPosition;
   let u_lighting_enabled;
   let u_global_lighting_enabled;
+  let u_spotlight_enabled;
+  let u_spotlight_position;
+  let u_spotlight_color;
+  let u_spotlight_direction;
+  let u_spotlight_cos_cutoff;
+  let u_spotlight_exponent;
 
 // init function for webgl
 function init_webgl() {
@@ -199,6 +242,34 @@ function init_shaders() {
     return;
   }
 
+  // Get the storage location of u_spotlight_color
+  u_spotlight_color = gl.getUniformLocation(gl.program, 'u_spotlight_color');
+  if (!u_spotlight_color) {
+    console.log('Failed to get the storage location of u_spotlight_color');
+    return;
+  }
+
+  // Get the storage location of u_spotlight_enabled
+  u_spotlight_enabled = gl.getUniformLocation(gl.program, 'u_spotlight_enabled');
+  if (!u_spotlight_enabled) {
+    console.log('Failed to get the storage location of u_spotlight_enabled');
+    return;
+  }
+
+  // Get the storage location of u_spotlight_position
+  u_spotlight_position = gl.getUniformLocation(gl.program, 'u_spotlight_position');
+  if (!u_spotlight_position) {
+    console.log('Failed to get the storage location of u_spotlight_position');
+    return;
+  }
+
+  // Get the storage location of u_spotlight_direction
+  u_spotlight_direction = gl.getUniformLocation(gl.program, 'u_spotlight_direction');
+  if (!u_spotlight_direction) {
+    console.log('Failed to get the storage location of u_spotlight_direction');
+    return;
+  }
+
   // Get the storage location of u_FragColor
   u_lighting_enabled = gl.getUniformLocation(gl.program, 'u_lighting_enabled');
   if (!u_lighting_enabled) {
@@ -210,6 +281,13 @@ function init_shaders() {
   u_global_lighting_enabled = gl.getUniformLocation(gl.program, 'u_global_lighting_enabled');
   if (!u_global_lighting_enabled) {
     console.log('Failed to get the storage location of u_global_lighting_enabled');
+    return;
+  }
+
+  // Get the storage location of u_lightPosition
+  u_lightPosition = gl.getUniformLocation(gl.program, 'u_lightPosition');
+  if (u_lightPosition < 0) {
+    console.log('Failed to get the storage location of u_lightPosition');
     return;
   }
 
@@ -284,6 +362,18 @@ function init_shaders() {
   u_Sampler3 = gl.getUniformLocation(gl.program, 'u_Sampler3');
   if (!u_Sampler3) {
     console.log('Failed to get the location of u_Sampler3.');
+    return false;
+  }
+
+  u_spotlight_cos_cutoff = gl.getUniformLocation(gl.program, 'u_spotlight_cos_cutoff');
+  if (!u_spotlight_cos_cutoff) {
+    console.log('Failed to get the location of u_spotlight_cos_cutoff.');
+    return false;
+  }
+
+  u_spotlight_exponent = gl.getUniformLocation(gl.program, 'u_spotlight_exponent');
+  if (!u_spotlight_exponent) {
+    console.log('Failed to get the location of u_spotlight_exponent.');
     return false;
   }
 
@@ -462,6 +552,10 @@ let g_playerSpeed=0.02;
 let g_mouse_sens=.2;
 let g_lightX=0, g_lightY=10, g_lightZ=0;
 let g_lightAngle=0;
+// Global color declarations
+let c_body = [0.41, 0.33, 0.27, 1.0];
+let c_hoof = [0.2, 0.2, 0.2, 1.0];
+let c_horn = [.8,.8,.8,1];
 // Global Variables - Animation
 let g_ox_speed=0.01;
 let g_walk_anim_on = false;
@@ -471,7 +565,11 @@ let g_poke_anim_on = false;
 let g_poke_anim_start = 0;
 let g_poke_anim_duration = 1000;
 let g_last_frame_time = 0;
-// Ox joint globals
+let g_ox_x = -8, g_ox_z = -12;
+let g_ox_angle = 180;
+let g_ox_turn_timer = 0;
+var g_ox_base = new Matrix4().translate(g_ox_x, 0, g_ox_z).rotate(g_ox_angle, 0,1,0); // world transform applied to ox body, head, legs
+// Global ox joint variables
 let g_selectedJoint_L_SH= 0;
 let g_selectedJoint_FL_KN=0;
 let g_selectedJoint_R_SH= 0;
@@ -485,8 +583,50 @@ let g_selectedJoint_FR_AN=0;
 let g_selectedJoint_RL_AN=0;
 let g_selectedJoint_RR_AN=0;
 let g_selectedJoint_neck =0;
+// Global lighting variables
 let g_global_lighting_enabled=1;
 let g_normal_tog = false;
+let g_spotlight_enabled = 0;
+let g_spotlight_position  = [0, 15, 0, 1];
+let g_spotlight_color     = [.1, .1, .1, 1];
+let g_spotlight_direction = [0, -1, 0];
+let g_spotlight_cos_cutoff = 0.99;
+let g_spotlight_exponent   = 10.0;
+// Global map
+var g_map = [
+  5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,
+  4,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
+  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
+  5,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4,
+  4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,
+];
 
 function init_html_ui_elements() {
   // slider events 
@@ -555,6 +695,25 @@ function init_html_ui_elements() {
       this.textContent = 'Light Animation: OFF';
     }
   }
+
+  // Spotlight toggle button
+  document.getElementById('b_spotlight_tog').onclick = function() {
+    g_spotlight_enabled = !g_spotlight_enabled;
+    if (g_spotlight_enabled) {
+      this.style.backgroundColor = '#07FF07';
+      this.textContent = 'Spotlight: ON';
+    } else {
+      this.style.backgroundColor = '#888';
+      this.textContent = 'Spotlight: OFF';
+    }
+  }
+
+  // Spotlight sliders
+  document.getElementById('s_spot_exponent').addEventListener('input', function() { g_spotlight_exponent = parseFloat(this.value); render_all_shapes(); });
+  document.getElementById('s_spot_cutoff').addEventListener('input', function() { g_spotlight_cos_cutoff = this.value / 1000.0; render_all_shapes(); });
+  document.getElementById('s_spot_r').addEventListener('input', function() { g_spotlight_color[0] = this.value / 100.0; render_all_shapes(); });
+  document.getElementById('s_spot_g').addEventListener('input', function() { g_spotlight_color[1] = this.value / 100.0; render_all_shapes(); });
+  document.getElementById('s_spot_b').addEventListener('input', function() { g_spotlight_color[2] = this.value / 100.0; render_all_shapes(); });
 
   // dont open the browsers default rightlick menu
   canvas.oncontextmenu = function(ev) { ev.preventDefault();};
@@ -719,7 +878,6 @@ function update_ox(dt)
     //g_ox_x -= g_ox_dx;
     //g_ox_z -= g_ox_dz;
     g_ox_angle += 180;
-
   }
 
   // rebuild the base matrix: translate to world pos, then rotate to face heading
@@ -757,53 +915,6 @@ function convert_coordinates_ev_to_gl(ev) {
 
   return([x,y]);
 }
-
-// colors definitions (global)
-let c_body = [0.41, 0.33, 0.27, 1.0];
-let c_hoof = [0.2, 0.2, 0.2, 1.0];
-let c_horn = [.8,.8,.8,1];
-
-// Ox animation/ AI globals
-let g_ox_x = -8, g_ox_z = -12;
-let g_ox_angle = 180;
-let g_ox_turn_timer = 0;
-var g_ox_base = new Matrix4().translate(g_ox_x, 0, g_ox_z).rotate(g_ox_angle, 0,1,0); // world transform applied to ox body, head, legs
-
-// global map
-var g_map = [
-  5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,
-  4,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,
-  4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,5,
-  5,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4,
-  4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,
-];
 
 function draw_map() {
   for (var x = 0; x < 32; x++) {
@@ -845,6 +956,21 @@ function render_all_shapes() {
   // pass lighting toggle
   gl.uniform1i(u_global_lighting_enabled, g_global_lighting_enabled);
 
+  // compute direction of spotlight to track Ox
+  var spotlight_dx = g_ox_x - g_spotlight_position[0];
+  var spotlight_dy = 0 - g_spotlight_position[1];
+  var spotlight_dz = g_ox_z - g_spotlight_position[2];
+  var spotlight_dist = Math.sqrt(spotlight_dx * spotlight_dx + spotlight_dy * spotlight_dy + spotlight_dz * spotlight_dz);
+  g_spotlight_direction = [spotlight_dx / spotlight_dist, spotlight_dy / spotlight_dist, spotlight_dz / spotlight_dist];
+
+  // pass spotlight uniforms
+  gl.uniform1i(u_spotlight_enabled,   g_spotlight_enabled);
+  gl.uniform4f(u_spotlight_position,  g_spotlight_position[0],  g_spotlight_position[1],  g_spotlight_position[2], g_spotlight_position[3]);
+  gl.uniform4f(u_spotlight_color,     g_spotlight_color[0],     g_spotlight_color[1],     g_spotlight_color[2],    g_spotlight_color[3]);
+  gl.uniform3f(u_spotlight_direction, g_spotlight_direction[0], g_spotlight_direction[1], g_spotlight_direction[2]);
+  gl.uniform1f(u_spotlight_cos_cutoff, g_spotlight_cos_cutoff);
+  gl.uniform1f(u_spotlight_exponent,   g_spotlight_exponent);
+
   // draw the moving light
   var moving_light = new Cube();
   moving_light.lighting_enabled = 1;
@@ -880,7 +1006,7 @@ function render_all_shapes() {
   // Draw a test sphere
   var test = new Sphere();
   test.color = [.2,.2,.2,1];
-  test.tex_num = -2;
+  test.tex_num = -3;
   if (g_normal_tog) test.tex_num = -3;
   test.matrix.translate(0,4,0);
   test.matrix.scale(2,2,2);
