@@ -206,7 +206,7 @@
 
     <!-- Settings tab -->
     <details class="settings">
-      <summary>Settings</summary>
+      <summary>General Settings</summary>
       <div class="slider-group">
 
         <div class="slider-item">
@@ -238,25 +238,35 @@
 
     <!-- Light Settings tab -->
     <details class="settings">
-      <summary>Light Position</summary>
+      <summary>Point Light Settings</summary>
       <div class="slider-group">
 
         <div class="slider-item">
-          <label>Light X <span id="v_light_x">0</span></label>
+          <label>Pos: X <span id="v_light_x">0</span></label>
           <input type="range" min="-16" max="16" value="0" id="s_light_x"
                  oninput="document.getElementById('v_light_x').textContent = this.value">
-        </div>
 
-        <div class="slider-item">
-          <label>Light Y <span id="v_light_y">10</span></label>
+          <label>Pos: Y <span id="v_light_y">10</span></label>
           <input type="range" min="0" max="20" value="5" id="s_light_y"
                  oninput="document.getElementById('v_light_y').textContent = this.value">
+
+          <label>Pos: Z <span id="v_light_z">0</span></label>
+          <input type="range" min="-16" max="16" value="0" id="s_light_z"
+                 oninput="document.getElementById('v_light_z').textContent = this.value">
         </div>
 
         <div class="slider-item">
-          <label>Light Z <span id="v_light_z">0</span></label>
-          <input type="range" min="-16" max="16" value="0" id="s_light_z"
-                 oninput="document.getElementById('v_light_z').textContent = this.value">
+          <label>Color: Red <span id="v_light_r">100</span></label>
+          <input type="range" min="0" max="100" value="100" id="s_light_r"
+                 oninput="document.getElementById('v_light_r').textContent = this.value">
+
+          <label>Color: G <span id="v_light_g">100</span></label>
+          <input type="range" min="0" max="100" value="100" id="s_light_g"
+                 oninput="document.getElementById('v_light_g').textContent = this.value">
+
+          <label>Color: B <span id="v_light_b">100</span></label>
+          <input type="range" min="0" max="100" value="100" id="s_light_b"
+                 oninput="document.getElementById('v_light_b').textContent = this.value">
         </div>
 
       </div>
@@ -271,30 +281,58 @@
           <label>Exponent <span id="v_spot_exponent">10</span></label>
           <input type="range" min="1" max="100" value="10" id="s_spot_exponent"
                  oninput="document.getElementById('v_spot_exponent').textContent = this.value">
-        </div>
-
-        <div class="slider-item">
+  
           <label>Cos Cutoff <span id="v_spot_cutoff">0.99</span></label>
           <input type="range" min="900" max="1000" value="990" id="s_spot_cutoff"
                  oninput="document.getElementById('v_spot_cutoff').textContent = (this.value/1000).toFixed(2)">
         </div>
 
         <div class="slider-item">
-          <label>R <span id="v_spot_r">10</span></label>
+          <label>Color: R <span id="v_spot_r">10</span></label>
           <input type="range" min="0" max="100" value="10" id="s_spot_r"
                  oninput="document.getElementById('v_spot_r').textContent = this.value">
-        </div>
 
-        <div class="slider-item">
-          <label>G <span id="v_spot_g">20</span></label>
+          <label>Color: G <span id="v_spot_g">20</span></label>
           <input type="range" min="0" max="100" value="10" id="s_spot_g"
                  oninput="document.getElementById('v_spot_g').textContent = this.value">
+
+
+          <label>Color: B <span id="v_spot_b">20</span></label>
+          <input type="range" min="0" max="100" value="10" id="s_spot_b"
+                 oninput="document.getElementById('v_spot_b').textContent = this.value">
+        </div>
+
+      </div>
+    </details>
+
+     <!-- Spotlight Settings tab -->
+    <details class="settings">
+      <summary>Model Settings</summary>
+      <div class="slider-group">
+
+        <div class="slider-item" style="grid-column: 1 / -1;">
+          <label>Model <span></span></label>
+          <select id="sel_model" onchange="g_which_model = this.value"
+                  style="background:#555; color:#fff; border:none; border-radius:4px; padding:4px 8px; font-family:inherit; font-size:0.85rem; cursor:pointer;">
+            <option value="sphere" selected>Sphere</option>
+            <option value="trumpet">Trumpet</option>
+            <option value="teapot">Teapot</option>
+            <option value="dragon">Dragon</option>
+          </select>
         </div>
 
         <div class="slider-item">
-          <label>B <span id="v_spot_b">20</span></label>
-          <input type="range" min="0" max="100" value="10" id="s_spot_b"
-                 oninput="document.getElementById('v_spot_b').textContent = this.value">
+          <label>Color: R <span id="v_model_r">20</span></label>
+          <input type="range" min="0" max="100" value="20" id="s_model_r"
+                 oninput="document.getElementById('v_model_r').textContent = this.value">
+
+          <label>Color: G <span id="v_model_g">20</span></label>
+          <input type="range" min="0" max="100" value="20" id="s_model_g"
+                 oninput="document.getElementById('v_model_g').textContent = this.value">
+
+          <label>Color: B <span id="v_model_b">20</span></label>
+          <input type="range" min="0" max="100" value="20" id="s_model_b"
+                 oninput="document.getElementById('v_model_b').textContent = this.value">
         </div>
 
       </div>
@@ -323,7 +361,7 @@
     <section>
       <h2>Notes</h2>
       <p class="note">
-        Improved performance by using a static vertex buffer, a static UV coordinate vector, and a static normal buffer.</p><p class="note">
+        No notes for this assignment :)</p><p class="note">
         
       </p>
     </section>
@@ -337,6 +375,7 @@
     <script src="Pyramid.js"></script>
     <script src="Camera.js"></script>
     <script src="Sphere.js"></script>
+    <script src="Model.js"></script>
     <script src="asg4.js"></script>
   </body>
 </html>

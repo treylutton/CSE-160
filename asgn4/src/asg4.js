@@ -39,6 +39,7 @@ var FSHADER_SOURCE = `
   uniform int u_tex_enum;
   uniform float u_tex_color_weight;
   uniform vec3 u_lightPosition;
+  uniform vec4 u_lightColor;
   uniform vec3 u_cameraPosition;
   uniform bool u_lighting_enabled;
   uniform bool u_global_lighting_enabled;
@@ -119,9 +120,10 @@ var FSHADER_SOURCE = `
       vec3 E = normalize(u_cameraPosition - vec3(v_vertexPosition));
       vec3 R = reflect(-L, v_Normal);
 
+      vec4 lightColor = u_lightColor;
       vec4 ambient = gl_FragColor * Ka;
-      vec4 diffuse = gl_FragColor * Kd * NdotL * attenuation;
-      vec4 specular = gl_FragColor * Ks * pow(max(dot(E, R), 0.0), 10.0);
+      vec4 diffuse = gl_FragColor * lightColor * Kd * NdotL * attenuation;
+      vec4 specular = gl_FragColor * lightColor * Ks * pow(max(dot(E, R), 0.0), 10.0);
 
       gl_FragColor = ambient + diffuse + specular;
       gl_FragColor.a = 1.0;
@@ -178,6 +180,7 @@ var FSHADER_SOURCE = `
   let u_ProjectionMatrix;
   let u_NormalMatrix;
   let u_lightPosition;
+  let u_lightColor;
   let u_cameraPosition;
   let u_lighting_enabled;
   let u_global_lighting_enabled;
@@ -286,14 +289,20 @@ function init_shaders() {
 
   // Get the storage location of u_lightPosition
   u_lightPosition = gl.getUniformLocation(gl.program, 'u_lightPosition');
-  if (u_lightPosition < 0) {
+  if (!u_lightPosition) {
     console.log('Failed to get the storage location of u_lightPosition');
     return;
   }
 
-  // Get the storage location of u_lightPosition
+  u_lightColor = gl.getUniformLocation(gl.program, 'u_lightColor');
+  if (!u_lightColor) {
+    console.log('Failed to get the storage location of u_lightColor');
+    return;
+  }
+
+  // Get the storage location of u_lightPosition (duplicate removed below)
   u_lightPosition = gl.getUniformLocation(gl.program, 'u_lightPosition');
-  if (u_lightPosition < 0) {
+  if (!u_lightPosition) {
     console.log('Failed to get the storage location of u_lightPosition');
     return;
   }
@@ -551,6 +560,7 @@ let g_selectedScale=1.0;
 let g_playerSpeed=0.02;
 let g_mouse_sens=.2;
 let g_lightX=0, g_lightY=10, g_lightZ=0;
+let g_lightColor = [1, 1, 1, 1];
 let g_lightAngle=0;
 // Global color declarations
 let c_body = [0.41, 0.33, 0.27, 1.0];
@@ -627,6 +637,20 @@ var g_map = [
   5,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4,
   4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,
 ];
+// Global .obj file models
+let g_model_head;
+let g_model_dragon;
+let g_model_teapot;
+let g_model_trumpet;
+let g_which_model = "sphere";
+let g_model_color = [.4,.4,.4,1];
+
+function init_obj_models() {
+  g_model_head = new Model(gl, "../lib/obj/head.obj");
+  g_model_dragon = new Model(gl, "../lib/obj/dragon.obj");
+  g_model_teapot = new Model(gl, "../lib/obj/teapot.obj");
+  g_model_trumpet = new Model(gl, "../lib/obj/trumpet.obj");
+}
 
 function init_html_ui_elements() {
   // slider events 
@@ -636,6 +660,17 @@ function init_html_ui_elements() {
   document.getElementById('s_light_x').addEventListener('input', function() { g_lightX = this.value; render_all_shapes(); });
   document.getElementById('s_light_y').addEventListener('input', function() { g_lightY = this.value; render_all_shapes(); });
   document.getElementById('s_light_z').addEventListener('input', function() { g_lightZ = this.value; render_all_shapes(); });
+  document.getElementById('s_light_r').addEventListener('input', function() { g_lightColor[0] = this.value / 100.0; render_all_shapes(); });
+  document.getElementById('s_light_g').addEventListener('input', function() { g_lightColor[1] = this.value / 100.0; render_all_shapes(); });
+  document.getElementById('s_light_b').addEventListener('input', function() { g_lightColor[2] = this.value / 100.0; render_all_shapes(); });
+  document.getElementById('s_spot_exponent').addEventListener('input', function() { g_spotlight_exponent = parseFloat(this.value); render_all_shapes(); });
+  document.getElementById('s_spot_cutoff').addEventListener('input', function() { g_spotlight_cos_cutoff = this.value / 1000.0; render_all_shapes(); });
+  document.getElementById('s_spot_r').addEventListener('input', function() { g_spotlight_color[0] = this.value / 100.0; render_all_shapes(); });
+  document.getElementById('s_spot_g').addEventListener('input', function() { g_spotlight_color[1] = this.value / 100.0; render_all_shapes(); });
+  document.getElementById('s_spot_b').addEventListener('input', function() { g_spotlight_color[2] = this.value / 100.0; render_all_shapes(); });
+  document.getElementById('s_model_r').addEventListener('input', function() { g_model_color[0] = this.value / 100.0; render_all_shapes(); });
+  document.getElementById('s_model_g').addEventListener('input', function() { g_model_color[1] = this.value / 100.0; render_all_shapes(); });
+  document.getElementById('s_model_b').addEventListener('input', function() { g_model_color[2] = this.value / 100.0; render_all_shapes(); });
   document.getElementById('s_fov').addEventListener('input', function() 
   {
     camera.fov = this.value;
@@ -683,16 +718,16 @@ function init_html_ui_elements() {
     }
   }
 
-  // light animation button
+  // light button
   document.getElementById('b_lighting_tog').onclick = function() {
     g_global_lighting_enabled = !g_global_lighting_enabled;
 
     if (g_global_lighting_enabled) {
       this.style.backgroundColor = '#07FF07';
-      this.textContent = 'Light Animation: ON';
+      this.textContent = 'Lighting: ON';
     } else {
       this.style.backgroundColor = '#888';
-      this.textContent = 'Light Animation: OFF';
+      this.textContent = 'Lighting: OFF';
     }
   }
 
@@ -707,13 +742,6 @@ function init_html_ui_elements() {
       this.textContent = 'Spotlight: OFF';
     }
   }
-
-  // Spotlight sliders
-  document.getElementById('s_spot_exponent').addEventListener('input', function() { g_spotlight_exponent = parseFloat(this.value); render_all_shapes(); });
-  document.getElementById('s_spot_cutoff').addEventListener('input', function() { g_spotlight_cos_cutoff = this.value / 1000.0; render_all_shapes(); });
-  document.getElementById('s_spot_r').addEventListener('input', function() { g_spotlight_color[0] = this.value / 100.0; render_all_shapes(); });
-  document.getElementById('s_spot_g').addEventListener('input', function() { g_spotlight_color[1] = this.value / 100.0; render_all_shapes(); });
-  document.getElementById('s_spot_b').addEventListener('input', function() { g_spotlight_color[2] = this.value / 100.0; render_all_shapes(); });
 
   // dont open the browsers default rightlick menu
   canvas.oncontextmenu = function(ev) { ev.preventDefault();};
@@ -750,6 +778,7 @@ function init() {
   init_shaders();
   init_html_ui_elements();
   init_textures();
+  init_obj_models();
 
   // set the clear color and clear the canvas
   gl.clearColor(g_clearColor[0], g_clearColor[1], g_clearColor[2], g_clearColor[3]);
@@ -924,6 +953,7 @@ function draw_map() {
         c.color = [0,0,0,1];
         c.tex_color_weight = .7;
         c.tex_num = (x == 0 || x == 31 || y == 0 || y == 31) ? 3 : 2;
+        if (g_normal_tog) c.tex_num = -3;
         c.matrix.translate(x - 16, h - 1, y - 16);
         c.render();
       }
@@ -947,8 +977,9 @@ function render_all_shapes() {
                                   .scale(g_selectedScale, g_selectedScale, g_selectedScale);
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, global_rotate_matrix.elements);
 
-  // pass light position to fragment shader
+  // pass light position and color to fragment shader
   gl.uniform3f(u_lightPosition, g_lightX, g_lightY, g_lightZ);
+  gl.uniform4f(u_lightColor, g_lightColor[0], g_lightColor[1], g_lightColor[2], g_lightColor[3]);
 
   // pass camera position to fragment shader
   gl.uniform3f(u_cameraPosition, camera.eye.elements[0], camera.eye.elements[1], camera.eye.elements[2]);
@@ -984,6 +1015,7 @@ function render_all_shapes() {
   var floor = new Cube();
   floor.color = [0.0,0.0,0.0,1.0];
   floor.tex_num = 0;
+  if (g_normal_tog) floor.tex_num = -3;
   floor.tex_color_weight = .7;
   floor.matrix.translate(0,-1,0);
   floor.matrix.scale(32,0.001,32);      // offsetting by 0.001 fixes lighting on ground
@@ -992,9 +1024,9 @@ function render_all_shapes() {
 
   // draw the sky sphere
   var skys = new Sphere();
-  skys.color = [0,0,0,1];
+  skys.color = [0.1,0.1,0.1,1];
   skys.tex_num = 1;
-  skys.tex_color_weight = 0.05;
+  skys.tex_color_weight = 0.2;
   skys.lighting_enabled = 0;
   skys.matrix.rotate(180, 1,0,1);
   skys.matrix.scale(100,100,100);
@@ -1003,14 +1035,31 @@ function render_all_shapes() {
   // draw all the cubes in the map
   draw_map();
 
-  // Draw a test sphere
-  var test = new Sphere();
-  test.color = [.2,.2,.2,1];
-  test.tex_num = -3;
-  if (g_normal_tog) test.tex_num = -3;
-  test.matrix.translate(0,4,0);
-  test.matrix.scale(2,2,2);
-  test.render();
+  // Draw the selected model or sphere
+  if (g_which_model == "sphere")
+  {
+    var sphere_model = new Sphere();
+    sphere_model.color = g_model_color;
+    if (g_normal_tog) sphere_model.tex_num = -3;
+    sphere_model.matrix.translate(0,4,0);
+    sphere_model.matrix.scale(2,2,2);
+    sphere_model.render();
+  } else if (g_which_model == "teapot") {
+    g_model_teapot.color = g_model_color;
+    g_model_teapot.matrix.setTranslate(0,2,0);
+    g_model_teapot.matrix.scale(.5,.5,.5);
+    g_model_teapot.render();
+  } else if (g_which_model == "dragon") {
+    g_model_dragon.color = g_model_color;
+    g_model_dragon.matrix.setTranslate(0,3,0);
+    g_model_dragon.matrix.scale(.5,.5,.5);
+    g_model_dragon.render();
+  } else if (g_which_model == "trumpet") {
+    g_model_trumpet.color = g_model_color;
+    g_model_trumpet.matrix.setTranslate(0,3,0);
+    g_model_trumpet.matrix.scale(.3,.3,.3);
+    g_model_trumpet.render();
+  }
 
   // DRAW THE OX
   // chest
