@@ -23,7 +23,7 @@ var VSHADER_SOURCE = `
 
     // passes varying variables to frag shaders
     v_UV = a_UV;
-    v_Normal = normalize(vec3(u_NormalMatrix * vec4(a_Normal, 1.0)));
+    v_Normal = normalize(vec3(u_NormalMatrix * vec4(a_Normal, 0.0)));
     v_vertexPosition = u_ModelMatrix * a_Position;  // conver to world coords
   }`
 
@@ -112,18 +112,20 @@ var FSHADER_SOURCE = `
       float distance_attenuation_factor = 0.01;
 
       // component calculations
+      vec3 N = normalize(v_Normal);
+      vec4 base_color = gl_FragColor;
       vec3 lightVector = u_lightPosition - vec3(v_vertexPosition);
       float r = length(lightVector);
       vec3 L = normalize(lightVector);
-      float NdotL = max(dot(v_Normal, L), 0.0);
+      float NdotL = max(dot(N, L), 0.0);
       float attenuation = 1.0 / (1.0 + (distance_attenuation_factor * (r * r)));
       vec3 E = normalize(u_cameraPosition - vec3(v_vertexPosition));
-      vec3 R = reflect(-L, v_Normal);
+      vec3 R = reflect(-L, N);
 
       vec4 lightColor = u_lightColor;
-      vec4 ambient = gl_FragColor * Ka;
-      vec4 diffuse = gl_FragColor * lightColor * Kd * NdotL * attenuation;
-      vec4 specular = gl_FragColor * lightColor * Ks * pow(max(dot(E, R), 0.0), 10.0);
+      vec4 ambient = base_color * Ka;
+      vec4 diffuse = base_color * lightColor * Kd * NdotL * attenuation;
+      vec4 specular = lightColor * Ks * pow(max(dot(E, R), 0.0), 25.0) * attenuation;
 
       gl_FragColor = ambient + diffuse + specular;
       gl_FragColor.a = 1.0;
@@ -132,29 +134,34 @@ var FSHADER_SOURCE = `
       if (u_spotlight_enabled)
       {
         float spotFactor = 1.0;  // multiplier to account for spotlight
-        if ( u_spotlight_position.w == 0.0 ) 
+        vec3 spotL;
+        if ( u_spotlight_position.w == 0.0 )
         {
-          L = normalize( u_spotlight_position.xyz );
+          spotL = normalize( u_spotlight_position.xyz );
         }
-        else 
+        else
         {
-          L = normalize( u_spotlight_position.xyz / u_spotlight_position.w - vec3(v_vertexPosition));
-          if (u_spotlight_cos_cutoff > 0.0) // the light is a spotlight 
-          { 
+          spotL = normalize( u_spotlight_position.xyz / u_spotlight_position.w - vec3(v_vertexPosition));
+          if (u_spotlight_cos_cutoff > 0.0) // the light is a spotlight
+          {
             vec3 D = -1.0 * normalize(u_spotlight_direction);
-            float spotCosine = dot(D,L);
-            if (spotCosine >= u_spotlight_cos_cutoff) 
-            { 
+            float spotCosine = dot(D, spotL);
+            if (spotCosine >= u_spotlight_cos_cutoff)
+            {
               spotFactor = pow(spotCosine, u_spotlight_exponent);
             }
-            else  // The point is outside the cone of light from the spotlight. 
-            { 
+            else  // The point is outside the cone of light from the spotlight.
+            {
               spotFactor = 0.0; // The light will add no color to the point.
             }
           }
         }
 
-        gl_FragColor = gl_FragColor  + (u_spotlight_color * spotFactor);
+        float spotNdotL = max(dot(N, spotL), 0.0);
+        vec3 spotR = reflect(-spotL, N);
+        vec4 spotDiffuse  = base_color * u_spotlight_color * Kd * spotNdotL * spotFactor;
+        vec4 spotSpecular = u_spotlight_color * Ks * pow(max(dot(E, spotR), 0.0), 25.0) * spotFactor;
+        gl_FragColor = gl_FragColor + spotDiffuse + spotSpecular;
       }
     }
   }
@@ -598,7 +605,7 @@ let g_global_lighting_enabled=1;
 let g_normal_tog = false;
 let g_spotlight_enabled = 0;
 let g_spotlight_position  = [0, 15, 0, 1];
-let g_spotlight_color     = [.1, .1, .1, 1];
+let g_spotlight_color     = [.75, .75, .75, 1];
 let g_spotlight_direction = [0, -1, 0];
 let g_spotlight_cos_cutoff = 0.99;
 let g_spotlight_exponent   = 10.0;
