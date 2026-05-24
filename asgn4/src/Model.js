@@ -55,9 +55,17 @@ class Model {
     }
 
     render() {
+        // wait if still loading
         if (!this.isFullyLoaded) return;
+
+        // enable lighting, disable textures
         gl.uniform1i(u_lighting_enabled, 1);
         gl.uniform1i(u_tex_enum, -2);
+        // a_UV may be enabled by the render() calls of other objects
+        // we need to explicitly disable it or macOS will throw an error
+        // because of a size mismatch (even though it is not being used with this tex_num)
+        gl.disableVertexAttribArray(a_UV);  
+
         //vert
         gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, this.modelData.vertices, gl.DYNAMIC_DRAW);
@@ -79,6 +87,7 @@ class Model {
         normalMatrix.transpose();
         gl.uniformMatrix4fv(u_NormalMatrix, false, normalMatrix.elements);
 
+        // draw the model
         gl.drawArrays(gl.TRIANGLES, 0, this.modelData.vertices.length / 3);
     }
 
