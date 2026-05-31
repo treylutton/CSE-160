@@ -15,7 +15,7 @@ WebGL assignments exploring 2D/3D rendering, transformations, animation, texturi
 |[2](https://treylutton.github.io/CSE-160/asgn2/src/asg2.html)| 3D "Blocky Animal" - hierarchical graphics, animation |
 |[3](https://treylutton.github.io/CSE-160/asgn3/src/asg3.html)| 3D "Blocky World" - textures, camera, collision detection |
 |[4](https://treylutton.github.io/CSE-160/asgn4/src/asg4.html)| Lighting - normal vectors, the Phong lighting model, loading .obj files |
-|[5](asgn5/)| - |
+|[5](https://treylutton.github.io/CSE-160/asgn5/src/asg5.html)| Three.js - exploring a high level graphics library, shader injection and animation |
 
 ---
 
@@ -23,5 +23,6 @@ WebGL assignments exploring 2D/3D rendering, transformations, animation, texturi
 
 - **WebGL**
 - **JavaScript**
-- **GLSL** vertex & fragment shaders
+- **GLSL** 
+- **three.js**
 - Helper libraries: `cuon-matrix`, `cuon-utils`, `webgl-utils`

@@ -1,13 +1,15 @@
-README for CSE 160 assignment 5
+# README for CSE 160 assignment 5
 
-Trey Lutton
-tlutton@ucsc.edu
+## Author
+Trey Lutton - tlutton@ucsc.edu - May 2026
 
-Notes to grader:
+## Sources:
+- Ground texture maps from [sharetexture.com](https://www.sharetextures.com/textures/ground/ground_11).
+- Tree models by [Quaternius](https://poly.pizza/u/Quaternius) from poly pizza.
+- three.js [shaders](https://github.com/mrdoob/three.js/tree/dev/src/renderers/shaders).
+- onBeforeCompile method [example](https://github.com/mrdoob/three.js/blob/dev/examples/webgl_materials_modified.html)
 
-Sources:
-    
-Files:
-    Assignment files: 
-    Test files: 
-    Other files: README.md (this file)
+## Notes to grader:
+
+### Extra features:
+- Added animation for the tree models I downloaded to sway in the wind. I did this with the [onBeforeCompile](https://threejs.org/docs/?q=onBefore#Material.onBeforeCompile) material method, injecting uniforms variables and replacing [this](https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderChunk/project_vertex.glsl.js) part of the mesh's vertex shader. I got the tree shadows to animate as well by creating [custom depth materials](https://threejs.org/docs/?q=customdep#Object3D.customDepthMaterial) and applying the same shader replacement.
