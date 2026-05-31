@@ -11,7 +11,7 @@
   </script>
     <style>
       body {
-        background-color: rgb(80, 80, 100);
+        background-color: #564b54;
         color: #ffffff;
         font-family: Verdana, sans-serif;
         display: flex;
@@ -29,6 +29,135 @@
         display: block;
         border: 2px solid #ffffff;
       }
+
+        /* --- collapsible settings tab --- */
+      details.settings {
+        width: 100%;
+        max-width: 640px;
+        background: rgba(0,0,0,0.25);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      details.settings summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 10px 16px;
+        font-size: 0.85rem;
+        font-weight: bold;
+        color: #ccc;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      details.settings summary::before {
+        content: '▶';
+        font-size: 0.65rem;
+        transition: transform 0.2s;
+      }
+
+      details.settings[open] summary::before { transform: rotate(90deg); }
+
+      /* --- slider grid inside the tab --- */
+      .slider-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px 24px;
+        padding: 14px 20px 20px;
+      }
+
+      .slider-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 0.8rem;
+        color: #ccc;
+      }
+
+      .slider-item label {
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .slider-item label span {
+        color: #fff;
+        font-weight: bold;
+      }
+
+      /* custom range track + thumb */
+      input[type=range] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 4px;
+        background: #555;
+        border-radius: 2px;
+        outline: none;
+      }
+
+      input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #7ecfff;
+        cursor: pointer;
+      }
+
+      input[type=range]::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border: none;
+        border-radius: 50%;
+        background: #7ecfff;
+        cursor: pointer;
+      }
+
+      section {
+        width: 100%;
+        max-width: 640px;
+      }
+
+      section h2 {
+        font-size: 0.95rem;
+        color: #333333;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #333;
+        padding-bottom: 4px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+
+      th, td {
+        text-align: left;
+        padding: 6px 10px;
+        border-bottom: 1px solid #2d2d2d;
+      }
+
+      th { color: #d6cdcd; font-weight: normal; width: 40%; }
+      td { color: #ddd; }
+
+      kbd {
+        display: inline-block;
+        background: #333;
+        border: 1px solid #555;
+        border-radius: 3px;
+        padding: 1px 6px;
+        font-size: 0.8rem;
+        font-family: monospace;
+      }
+      
     </style>
      <meta charset="utf-8">
     <title>CSE-160 Assignment 5 - Lutton</title>
@@ -36,12 +165,52 @@
   <body>
     <header>
       <h1>Assignment 5 &mdash; Exploring Three.js</h1>
-      <p>Trey Lutton &nbsp;|&nbsp; tlutton@ucsc.edu &nbsp;|&nbsp; CSE160 &mdash; Spring 2026</p>
+      <p>Trey Lutton &nbsp;|&nbsp; tlutton@ucsc.edu &nbsp;|&nbsp; CSE160 &mdash; Spring 2026 &nbsp;|&nbsp; <a href="https://github.com/treylutton/CSE-160/blob/main/asgn5/README.md" style="color:#00649f;">README</a></p>
     </header>
 
-    <canvas id="c" width="900" height="600">
-      Please use a browser that supports "canvas"
-    </canvas>
+    <div id="canvas-container">
+      <canvas id="c" width="900" height="600">
+        Please use a browser that supports "canvas"
+      </canvas>
+    </div>
+
+    <details class="settings">
+      <summary>Wind Settings</summary>
+      <div class="slider-group">
+
+        <div class="slider-item">
+          <label>Sine Wave Frequency<span id="v_wind_freq">15</span></label>
+          <input type="range" min="0" max="50" value="15" id="s_wind_freq"
+                 oninput="document.getElementById('v_wind_freq').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>Sine Wave Amplitude<span id="v_wind_amp">2</span></label>
+          <input type="range" min="0" max="20" value="2" id="s_wind_amp"
+                 oninput="document.getElementById('v_wind_amp').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>X-Direction Strength<span id="v_wind_x">10</span></label>
+          <input type="range" min="-10" max="10" value="10" id="s_wind_x"
+                 oninput="document.getElementById('v_wind_x').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>Z-Direction Strength<span id="v_wind_z">10</span></label>
+          <input type="range" min="-10" max="10" value="10" id="s_wind_z"
+                 oninput="document.getElementById('v_wind_z').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>Ripple Effect<span id="v_wind_rip">5</span></label>
+          <input type="range" min="0" max="10" value="5" id="s_wind_rip"
+                 oninput="document.getElementById('v_wind_rip').textContent = this.value">
+        </div>
+
+
+      </div>
+    </details>
 
     <script type="module" src="./asg5.js"></script>
   </body>
