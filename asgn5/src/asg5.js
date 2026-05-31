@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { WIND_UNIFORMS_GLSL, LEAVES_PROJECT_VERTEX_GLSL, TRUNK_PROJECT_VERTEX_GLSL } from './shaders.js';
+import { WIND_UNIFORMS_GLSL, WIND_PROJECT_VERTEX_GLSL } from './shaders.js';
 
 // GLOBALS
 let g_renderer;
@@ -38,31 +38,37 @@ const g_mat_z = new THREE.LineBasicMaterial( { color: 0x0000ff } );
 let g_tex_stone;
 let g_tex_wood;
 let g_tex_grass;
-let g_background;
+let g_tex_background;
 // all objects & lights
 let g_test_objects = [];
 let g_objects = [];
 let g_lights = [];
 let g_mod_objects = [];
 // ANIMATION GLOBALS
-let g_wind_freq = 1.5;
+let g_wind_freq = 2.0;
 let g_wind_amp  = 0.02;
 let g_wind_x    = 1.0;
 let g_wind_z    = 1.0;
 let g_wind_rip  = 0.5;
+let g_grass_amp = 20.0;
+// glb children (vegetation wind toggle for these child names)
+let g_childnames_leaves = ["Pine_2_2", "Pine_4_2", "Pine_5_2"];
+let g_childnames_trunks = ["Pine_2_1", "Pine_4_1", "Pine_5_1"];
+let g_childnames_grass  = ["Grass_Common_Short"]
+let g_childnames_fern   = ["Fern_1"];
 
 function deg_to_rad(deg) {
     return deg * (Math.PI / 180);
 }
 
-function inject_wind_shaders(shader, project_vertex_chunk) {
+function inject_wind_shaders(shader, project_vertex_chunk, grass) {
     // https://github.com/mrdoob/three.js/blob/dev/examples/webgl_materials_modified.html
     shader.uniforms.u_time      = { value: 0.0 };
     shader.uniforms.u_wind_freq = { value: g_wind_freq };
-    shader.uniforms.u_wind_amp  = { value: g_wind_amp };
     shader.uniforms.u_wind_x    = { value: g_wind_x };
     shader.uniforms.u_wind_z    = { value: g_wind_z };
-    shader.uniforms.u_wind_rip  = { value: g_wind_rip };
+    shader.uniforms.u_wind_amp  = { value: g_wind_amp * (grass ? g_grass_amp : 1.0)};
+    shader.uniforms.u_wind_rip  = { value: g_wind_rip * (grass ? g_grass_amp / 5.0 : 1.0)};
     shader.vertexShader = WIND_UNIFORMS_GLSL + shader.vertexShader;
     shader.vertexShader = shader.vertexShader.replace(`#include <project_vertex>`, project_vertex_chunk);
 }
@@ -78,7 +84,7 @@ function setup_glb_tree_model(glb, position) {
     glb.scene.traverse(child => {
         if (child.isMesh) {
             // get some insight into the different objects in the tree model
-            //console.log(child.name, child.material.map);
+            console.log(child.name, child.material.map);
 
             child.material.side = THREE.DoubleSide;
             child.castShadow = true;
@@ -87,11 +93,15 @@ function setup_glb_tree_model(glb, position) {
             // disable transparency (May change this back, seems to make the tree .glb models look better)
             //child.material.transarent = false;
 
-            if (child.name == "Pine_2_2" || child.name == "Pine_2_1") {
-                const project_vertex_chunk = child.name == "Pine_2_2" ? LEAVES_PROJECT_VERTEX_GLSL : TRUNK_PROJECT_VERTEX_GLSL;
+            const leaves = g_childnames_leaves.includes(child.name);
+            const trunk = g_childnames_trunks.includes(child.name);
+            const grass = g_childnames_grass.includes(child.name);
+            const fern = g_childnames_fern.includes(child.name);
+
+            if (leaves || trunk || grass || fern) {
 
                 child.material.onBeforeCompile = function (shader) {
-                    inject_wind_shaders(shader, project_vertex_chunk);
+                    inject_wind_shaders(shader, WIND_PROJECT_VERTEX_GLSL, grass);
                     child.material.userData.shader = shader;
                 };
 
@@ -99,7 +109,7 @@ function setup_glb_tree_model(glb, position) {
                 // makes shadows animate with trees.
                 const depthMat = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
                 depthMat.onBeforeCompile = function (shader) {
-                    inject_wind_shaders(shader, project_vertex_chunk);
+                    inject_wind_shaders(shader, WIND_PROJECT_VERTEX_GLSL, grass);
                     child.material.userData.depthShader = shader;
                 };
                 child.customDepthMaterial = depthMat;
@@ -116,12 +126,17 @@ async function load_models() {
     const loader = new GLTFLoader();
 
     // trees
-    const pine1 = setup_glb_tree_model(await loader.loadAsync('../resources/pine-1.glb'), new THREE.Vector3(0,0,-4));
-    const pine2 = setup_glb_tree_model(await loader.loadAsync('../resources/pine-1.glb'), new THREE.Vector3(5,0,-5));
-
+    const pine1 = setup_glb_tree_model(await loader.loadAsync('../resources/pine-1.glb'), new THREE.Vector3(0,0,-5));
+    const pine2 = setup_glb_tree_model(await loader.loadAsync('../resources/pine-2.glb'), new THREE.Vector3(5,0,-5));
+    const pine3 = setup_glb_tree_model(await loader.loadAsync('../resources/pine-3.glb'), new THREE.Vector3(-5,0,-5));
+    const fern1 = setup_glb_tree_model(await loader.loadAsync('../resources/fern.glb'), new THREE.Vector3(10,0,-5));
+    const grass1 = setup_glb_tree_model(await loader.loadAsync('../resources/grass.glb'), new THREE.Vector3(-11,0,-6));
+    const grass2 = setup_glb_tree_model(await loader.loadAsync('../resources/grass.glb'), new THREE.Vector3(-9,0,-5));
+    const grass3 = setup_glb_tree_model(await loader.loadAsync('../resources/grass.glb'), new THREE.Vector3(-10,0,-6));
+    const grass4 = setup_glb_tree_model(await loader.loadAsync('../resources/grass.glb'), new THREE.Vector3(-11,0,-5));
     pine2.rotation.y = deg_to_rad(240);
 
-    g_mod_objects.push(pine1,pine2);
+    g_mod_objects.push(pine1,pine2,pine3,fern1,grass1,grass2,grass3,grass4);
 }
 
 function update_camera_settings() {
@@ -141,7 +156,7 @@ function init_camera() {
     const fov = 75;
     const aspect = g_canvas.width / g_canvas.height;  // the canvas default
     const near = 0.1;
-    const far = 50;
+    const far = 100;
     g_camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
     g_camera.position.set(g_camera_X, g_camera_Y, g_camera_Z);
 
@@ -182,6 +197,9 @@ function init_scene() {
     for (let i = 0; i < g_mod_objects.length; i++) {
         g_scene.add(g_mod_objects[i]);
     }
+
+    // set background
+    g_scene.background = g_tex_background;
 }
 
 function set_ground_texture_params(tex) {
@@ -225,7 +243,11 @@ function load_textures() {
         //roughnessMap: ground_rough
     });
 
-    // 
+    // sky box cube map
+    g_tex_background = loader.load('../resources/sky2.png', () => {
+        g_tex_background.mapping = THREE.EquirectangularRefractionMapping;
+        g_tex_background.colorSpace = THREE.SRGBColorSpace;
+    });
 }
 
 
@@ -271,13 +293,13 @@ function create_all_objects() {
     g_lights.push(directional, ambient);
 }
 
-function update_uniforms(shader, time) {
+function update_uniforms(shader, time, grass) {
     shader.uniforms.u_time.value      = time;
-    shader.uniforms.u_wind_amp.value  = g_wind_amp;
+    shader.uniforms.u_wind_amp.value  = g_wind_amp * (grass ? g_grass_amp : 1.0);
     shader.uniforms.u_wind_freq.value = g_wind_freq;
     shader.uniforms.u_wind_x.value    = g_wind_x;
     shader.uniforms.u_wind_z.value    = g_wind_z;
-    shader.uniforms.u_wind_rip.value  = g_wind_rip;
+    shader.uniforms.u_wind_rip.value  = g_wind_rip * (grass ? g_grass_amp / 5.0 : 1.0);
 }
 
 function animate(time) {
@@ -287,10 +309,15 @@ function animate(time) {
     // line 149 => updating uniforms in injected shaders
     g_scene.traverse( function ( child ) {
 
-        if ( child.isMesh && (child.name == "Pine_2_2" || child.name == "Pine_2_1") ) {
+        const leaves = g_childnames_leaves.includes(child.name);
+        const trunk = g_childnames_trunks.includes(child.name);
+        const grass = g_childnames_grass.includes(child.name);
+        const fern = g_childnames_fern.includes(child.name);
+
+        if ( child.isMesh && ( leaves || trunk || grass || fern )) {
             // update the shader and the depth shader
-            if (child.material.userData.shader) update_uniforms(child.material.userData.shader, time);
-            if (child.material.userData.depthShader) update_uniforms(child.material.userData.depthShader, time);
+            if (child.material.userData.shader) update_uniforms(child.material.userData.shader, time, grass);
+            if (child.material.userData.depthShader) update_uniforms(child.material.userData.depthShader, time, grass);
         }
     });
 
