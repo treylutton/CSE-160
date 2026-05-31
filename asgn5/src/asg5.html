@@ -5,13 +5,14 @@
   {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/",
+    "simplex-noise": "https://cdn.jsdelivr.net/npm/simplex-noise@4.0.3/dist/esm/simplex-noise.js"
     }
   }
   </script>
     <style>
       body {
-        background-color: #564b54;
+        background-color: #824c4c;
         color: #ffffff;
         font-family: Verdana, sans-serif;
         display: flex;
@@ -45,7 +46,7 @@
         padding: 10px 16px;
         font-size: 0.85rem;
         font-weight: bold;
-        color: #ccc;
+        color: #ffffff;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         user-select: none;
@@ -84,38 +85,8 @@
       }
 
       .slider-item label span {
-        color: #fff;
+        color: #ffffff;
         font-weight: bold;
-      }
-
-      /* custom range track + thumb */
-      input[type=range] {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 100%;
-        height: 4px;
-        background: #555;
-        border-radius: 2px;
-        outline: none;
-      }
-
-      input[type=range]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: #7ecfff;
-        cursor: pointer;
-      }
-
-      input[type=range]::-moz-range-thumb {
-        width: 14px;
-        height: 14px;
-        border: none;
-        border-radius: 50%;
-        background: #7ecfff;
-        cursor: pointer;
       }
 
       section {
@@ -148,6 +119,22 @@
       th { color: #d6cdcd; font-weight: normal; width: 40%; }
       td { color: #ddd; }
 
+      #btn_regen {
+        display: block;
+        margin: 0 auto;
+        padding: 10px 28px;
+        background: #474747;
+        color: #ffffff;
+        border: none;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        font-weight: bold;
+        cursor: pointer;
+        letter-spacing: 0.04em;
+      }
+
+      #btn_regen:hover  { background: #027551; }
+
       kbd {
         display: inline-block;
         background: #333;
@@ -164,8 +151,8 @@
   </head>
   <body>
     <header>
-      <h1>Assignment 5 &mdash; Exploring Three.js</h1>
-      <p>Trey Lutton &nbsp;|&nbsp; tlutton@ucsc.edu &nbsp;|&nbsp; CSE160 &mdash; Spring 2026 &nbsp;|&nbsp; <a href="https://github.com/treylutton/CSE-160/blob/main/asgn5/README.md" style="color:#00649f;">README</a></p>
+      <h1>World Generator </h1>
+      <p>Trey Lutton &nbsp;|&nbsp; tlutton@ucsc.edu &nbsp;|&nbsp; CSE160 &mdash; Spring 2026</p>
     </header>
 
     <div id="canvas-container">
@@ -173,6 +160,74 @@
         Please use a browser that supports "canvas"
       </canvas>
     </div>
+
+    <button id="btn_regen">Generate World</button>
+
+    <details class="settings">
+      <summary>World Generation Settings</summary>
+      <div class="slider-group">
+
+        <div class="slider-item">
+          <label>Layers<span id="v_layers">4</span></label>
+          <input type="range" min="1" max="8" value="4" id="s_layers"
+                 oninput="document.getElementById('v_layers').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>Persistence<span id="v_persistence">0.50</span></label>
+          <input type="range" min="1" max="100" value="50" id="s_persistence"
+                 oninput="document.getElementById('v_persistence').textContent = (this.value/100).toFixed(2)">
+        </div>
+
+        <div class="slider-item">
+          <label>Lacunarity<span id="v_lacunarity">2.0</span></label>
+          <input type="range" min="10" max="40" value="20" id="s_lacunarity"
+                 oninput="document.getElementById('v_lacunarity').textContent = (this.value/10).toFixed(1)">
+        </div>
+
+        <div class="slider-item">
+          <label>Base Frequency<span id="v_layer0_freq">0.010</span></label>
+          <input type="range" min="1" max="50" value="10" id="s_layer0_freq"
+                 oninput="document.getElementById('v_layer0_freq').textContent = (this.value/1000).toFixed(3)">
+        </div>
+
+        <div class="slider-item">
+          <label>Base Amplitude<span id="v_layer0_amp">5</span></label>
+          <input type="range" min="1" max="20" step="1" value="5" id="s_layer0_amp"
+                 oninput="document.getElementById('v_layer0_amp').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>World Size<span id="v_world_size">50</span></label>
+          <input type="range" min="20" max="200" step="10" value="150" id="s_world_size"
+                 oninput="document.getElementById('v_world_size').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>World Divisions<span id="v_world_divs">50</span></label>
+          <input type="range" min="10" max="200" step="10" value="100" id="s_world_divs"
+                 oninput="document.getElementById('v_world_divs').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>Pine Count<span id="v_pine_count">100</span></label>
+          <input type="range" min="0" max="200" step="5" value="70" id="s_pine_count"
+                 oninput="document.getElementById('v_pine_count').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>Fern Count<span id="v_fern_count">50</span></label>
+          <input type="range" min="0" max="100" step="5" value="30" id="s_fern_count"
+                 oninput="document.getElementById('v_fern_count').textContent = this.value">
+        </div>
+
+        <div class="slider-item">
+          <label>Grass Count<span id="v_grass_count">1000</span></label>
+          <input type="range" min="0" max="2000" step="50" value="1000" id="s_grass_count"
+                 oninput="document.getElementById('v_grass_count').textContent = this.value">
+        </div>
+      </div>
+    </details>
 
     <details class="settings">
       <summary>Wind Settings</summary>
@@ -207,10 +262,15 @@
           <input type="range" min="0" max="10" value="5" id="s_wind_rip"
                  oninput="document.getElementById('v_wind_rip').textContent = this.value">
         </div>
-
-
       </div>
     </details>
+
+    <div>
+
+          Extra features and notes are documented in the <a href="https://github.com/treylutton/CSE-160/blob/main/asgn5/README.md" style="color:#00a2ff;">README</a></p>
+
+    </div>
+
 
     <script type="module" src="./asg5.js"></script>
   </body>
