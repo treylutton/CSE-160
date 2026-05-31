@@ -13,3 +13,4 @@ Trey Lutton - tlutton@ucsc.edu - May 2026
 
 ### Extra features:
 - Added animation for the tree models I downloaded to sway in the wind. I did this with the [onBeforeCompile](https://threejs.org/docs/?q=onBefore#Material.onBeforeCompile) material method, injecting uniforms variables and replacing [this](https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderChunk/project_vertex.glsl.js) part of the mesh's vertex shader. I got the tree shadows to animate as well by creating [custom depth materials](https://threejs.org/docs/?q=customdep#Object3D.customDepthMaterial) and applying the same shader replacement.
+- Randomized vegetation placement and rotation in scene using the three.js [Raycaster](https://threejs.org/docs/#Raycaster.intersectObject). Casts rays down from the sky at random x and z positions, creates an instance of the models at the first intersection with the terrain object. 

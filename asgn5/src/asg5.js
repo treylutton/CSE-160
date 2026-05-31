@@ -10,9 +10,9 @@ let g_scene;
 let g_canvas;
 // camera
 let g_camera;
-let g_camera_X = 0;
-let g_camera_Y = 5;
-let g_camera_Z = 10;
+let g_camera_X = 20;
+let g_camera_Y = 20;
+let g_camera_Z = 50;
 // gui
 let g_gui = new GUI({ title: 'Camera Settings', container: document.getElementById('canvas-container') });;
 // axis lines to help debugging
@@ -50,7 +50,7 @@ let g_wind_amp  = 0.02;
 let g_wind_x    = 1.0;
 let g_wind_z    = 1.0;
 let g_wind_rip  = 0.5;
-let g_grass_amp = 20.0;
+let g_grass_amp = 10.0;
 // glb children (vegetation wind toggle for these child names)
 let g_childnames_leaves = ["Pine_2_2", "Pine_4_2", "Pine_5_2"];
 let g_childnames_trunks = ["Pine_2_1", "Pine_4_1", "Pine_5_1"];
@@ -121,22 +121,62 @@ function setup_glb_tree_model(glb, position) {
     return glb.scene;
 }
 
+// https://threejs.org/docs/#api/en/core/Raycaster.intersectObject
+function place_on_terrain(terrain, glb_scene, count, range) {
+    const raycaster = new THREE.Raycaster();
+    const down = new THREE.Vector3(0, -1, 0);
+    const placed = [];
+
+    while (placed.length < count) {
+        // gets random x, z in range
+        const x = (Math.random() - 0.5) * range;
+        const z = (Math.random() - 0.5) * range;
+        // casts rays down from random position in sky
+        raycaster.set(new THREE.Vector3(x, 20, z), down);
+        const hits = raycaster.intersectObject(terrain, true);
+        if (hits.length > 0) {
+            // creates a tree on first intersection point
+            const tree = setup_glb_tree_model({ scene: glb_scene.clone(true) }, hits[0].point);
+            // random y rotation
+            tree.rotation.y = Math.random() * Math.PI * 2;
+            placed.push(tree);
+        }
+    }
+    return placed;
+}
+
 async function load_models() {
-    // initialize the asynchronus loader
     const loader = new GLTFLoader();
 
-    // trees
-    const pine1 = setup_glb_tree_model(await loader.loadAsync('../resources/pine-1.glb'), new THREE.Vector3(0,0,-5));
-    const pine2 = setup_glb_tree_model(await loader.loadAsync('../resources/pine-2.glb'), new THREE.Vector3(5,0,-5));
-    const pine3 = setup_glb_tree_model(await loader.loadAsync('../resources/pine-3.glb'), new THREE.Vector3(-5,0,-5));
-    const fern1 = setup_glb_tree_model(await loader.loadAsync('../resources/fern.glb'), new THREE.Vector3(10,0,-5));
-    const grass1 = setup_glb_tree_model(await loader.loadAsync('../resources/grass.glb'), new THREE.Vector3(-11,0,-6));
-    const grass2 = setup_glb_tree_model(await loader.loadAsync('../resources/grass.glb'), new THREE.Vector3(-9,0,-5));
-    const grass3 = setup_glb_tree_model(await loader.loadAsync('../resources/grass.glb'), new THREE.Vector3(-10,0,-6));
-    const grass4 = setup_glb_tree_model(await loader.loadAsync('../resources/grass.glb'), new THREE.Vector3(-11,0,-5));
-    pine2.rotation.y = deg_to_rad(240);
+    // terrain loaded first — place_on_terrain raycasts against it so it must exist
+    const terrainGlb = await loader.loadAsync('../resources/terrain.glb');
+    const terrain = terrainGlb.scene;
+    //terrain.scale.set(0.5, 0.5, 0.5);
+    terrain.traverse(child => {
+        if (child.isMesh) {
+            child.material = g_mat_ground;
+            child.receiveShadow = true;
+        }
+    });
+    
+    // use below if scaling terrain
+    //terrain.updateWorldMatrix(true,true);
 
-    g_mod_objects.push(pine1,pine2,pine3,fern1,grass1,grass2,grass3,grass4);
+    // load each pine type once, then scatter copies across terrain
+    // range is world-space units — tune to match your terrain footprint
+    const pine_1_glb = await loader.loadAsync('../resources/pine-1.glb');
+    const pine_2_glb = await loader.loadAsync('../resources/pine-2.glb');
+    const pine_3_glb = await loader.loadAsync('../resources/pine-3.glb');
+    const fern_glb = await loader.loadAsync('../resources/fern.glb');
+    const grass_glb = await loader.loadAsync('../resources/grass.glb');
+    const pines = place_on_terrain(terrain, pine_1_glb.scene, 30, 100)
+          .concat(place_on_terrain(terrain, pine_2_glb.scene, 30, 100))
+          .concat(place_on_terrain(terrain, pine_3_glb.scene, 30, 100));
+    const ferns = place_on_terrain(terrain, fern_glb.scene, 30, 100);
+    const grass = place_on_terrain(terrain, grass_glb.scene, 1000, 100)
+   
+
+    g_mod_objects = g_mod_objects.concat(pines, grass, ferns, terrain);
 }
 
 function update_camera_settings() {
@@ -156,7 +196,7 @@ function init_camera() {
     const fov = 75;
     const aspect = g_canvas.width / g_canvas.height;  // the canvas default
     const near = 0.1;
-    const far = 100;
+    const far = 200;
     g_camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
     g_camera.position.set(g_camera_X, g_camera_Y, g_camera_Z);
 
@@ -203,10 +243,10 @@ function init_scene() {
 }
 
 function set_ground_texture_params(tex) {
-    // blurs significantly at distance but very detailed up close
+    // TODO: rethink after swapping from ground plane to custom terrain
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(200, 200);
+    tex.repeat.set(1, 1);
     tex.minFilter = THREE.LinearMipmapNearestFilter;
     tex.magFilter = THREE.LinearFilter;
     return tex;
@@ -241,7 +281,10 @@ function load_textures() {
         //metalnessMap: ground_met,
         normalMap:    ground_norm,
         //roughnessMap: ground_rough
+        side:         THREE.DoubleSide  // need double sided for raycaster
     });
+
+
 
     // sky box cube map
     g_tex_background = loader.load('../resources/sky2.png', () => {
@@ -268,10 +311,10 @@ function create_all_objects() {
     // objects
 
     // GROUND PLANE
-    const ground_plane = create_mesh(g_geo_plane, g_mat_ground, new THREE.Vector3(0, 0, 0));
-    ground_plane.rotation.x = -Math.PI * 0.5;
-    ground_plane.receiveShadow = true;
-    g_objects.push(ground_plane);
+    //const ground_plane = create_mesh(g_geo_plane, g_mat_ground, new THREE.Vector3(0, 0, 0));
+    //ground_plane.rotation.x = -Math.PI * 0.5;
+    //ground_plane.receiveShadow = true;
+    //g_objects.push(ground_plane);
 
     // test objects
     g_test_objects.push(create_mesh(g_geo_cube, g_mat_phong_stone, new THREE.Vector3(0,1,0)),
@@ -279,23 +322,23 @@ function create_all_objects() {
                    create_mesh(g_geo_cube, g_mat_phong_wood, new THREE.Vector3(-2,1,0)));
 
     // lights
-    const directional = new THREE.DirectionalLight(0xffffff, 0.4);
-    directional.position.set(-1,2, 4);
+    const directional = new THREE.DirectionalLight(0xffaa00, 0.5);
+    directional.position.set(0,60,100);
     directional.castShadow = true;
-    directional.shadow.camera.left   = -10;
-    directional.shadow.camera.right  =  10;
-    directional.shadow.camera.top    =  10;
-    directional.shadow.camera.bottom = -10;
+    directional.shadow.camera.left   = -50;
+    directional.shadow.camera.right  =  50;
+    directional.shadow.camera.top    =  50;
+    directional.shadow.camera.bottom = -50;
     directional.shadow.bias = -0.001;
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.1);
+    const ambient = new THREE.AmbientLight(0xffff00, 0.1);
 
     g_lights.push(directional, ambient);
 }
 
-function update_uniforms(shader, time, grass) {
+function update_uniforms(shader, time, grass, fern) {
     shader.uniforms.u_time.value      = time;
-    shader.uniforms.u_wind_amp.value  = g_wind_amp * (grass ? g_grass_amp : 1.0);
+    shader.uniforms.u_wind_amp.value  = g_wind_amp * (grass ? g_grass_amp : 1.0) * (fern ? g_grass_amp / 2.5 : 1.0);
     shader.uniforms.u_wind_freq.value = g_wind_freq;
     shader.uniforms.u_wind_x.value    = g_wind_x;
     shader.uniforms.u_wind_z.value    = g_wind_z;
@@ -316,8 +359,8 @@ function animate(time) {
 
         if ( child.isMesh && ( leaves || trunk || grass || fern )) {
             // update the shader and the depth shader
-            if (child.material.userData.shader) update_uniforms(child.material.userData.shader, time, grass);
-            if (child.material.userData.depthShader) update_uniforms(child.material.userData.depthShader, time, grass);
+            if (child.material.userData.shader) update_uniforms(child.material.userData.shader, time, grass, fern);
+            if (child.material.userData.depthShader) update_uniforms(child.material.userData.depthShader, time, grass, fern);
         }
     });
 
@@ -348,5 +391,6 @@ function main() {
     requestAnimationFrame(animate);
 }
 
+load_textures();
 await load_models();
 main();
