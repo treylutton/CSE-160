@@ -382,11 +382,11 @@ function create_lights() {
     directional.shadow.camera.top    =  100;
     directional.shadow.camera.bottom = -100;
     directional.shadow.normalBias = 1;
-    directional.shadow.bias = -0.0001;
+    directional.shadow.bias = 0.0002;
     directional.shadow.blurSamples = 16;
 
-    const ambient = new THREE.AmbientLight(0x444444, 0.5);
-    const hem = new THREE.HemisphereLight( 0xffcc00, 0xff00000, .3 );
+    const ambient = new THREE.AmbientLight(0xffffff, 0.2);
+    const hem = new THREE.HemisphereLight( 0xffccaa, 0x000000, .3 );
 
     
     g_lights.push(directional, hem, ambient);
