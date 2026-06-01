@@ -11,6 +11,7 @@ let g_scene;
 let g_canvas;
 // camera
 let g_camera;
+let g_controls;
 let g_camera_X = 20;
 let g_camera_Y = 20;
 let g_camera_Z = 50;
@@ -32,6 +33,7 @@ let g_mat_phong_stone;
 let g_mat_phong_wood;
 let g_mat_basic_grass;
 let g_mat_ground;
+let g_mat_water;
 const g_mat_x = new THREE.LineBasicMaterial( { color: 0xff0000 } );
 const g_mat_y = new THREE.LineBasicMaterial( { color: 0x00ff00 } );
 const g_mat_z = new THREE.LineBasicMaterial( { color: 0x0000ff } );
@@ -40,6 +42,7 @@ let g_tex_stone;
 let g_tex_wood;
 let g_tex_grass;
 let g_tex_background;
+let g_water_norm;
 // models
 let g_pine1_glb;
 let g_pine2_glb;
@@ -51,6 +54,7 @@ let g_models_loaded = false;
 let g_lights = [];
 let g_mod_objects = [];
 let g_terrain;
+let g_water;
 // ANIMATION GLOBALS
 let g_wind_freq = 2.0;
 let g_wind_amp  = 0.02;
@@ -68,12 +72,16 @@ let g_layers = 4;
 let g_persistence = 0.5;
 let g_lacunarity = 2.0;
 let g_layer0_freq = 0.01;
-let g_layer0_amp  = 7;
+let g_layer0_amp  = 10;
 let g_world_size = 150;
 let g_world_divs = 100;
 let g_pine_count = 100;
 let g_fern_count = 50;
 let g_grass_count = 1000;
+// terrain smoothing (islands) and water tuners
+let g_island_size = 0.3;   // normalized dist from center where smoothing to ocean floor starts
+let g_edge_depth = -5;      // guaranteed world space ground plane Y coordinate at edges
+let g_water_level = -1;
 
 function deg_to_rad(deg) {
     return deg * (Math.PI / 180);
@@ -139,7 +147,7 @@ function setup_glb_tree_model(glb, position) {
 }
 
 // https://threejs.org/docs/#api/en/core/Raycaster.intersectObject
-function place_on_terrain(terrain, glb_scene, count, range) {
+function place_on_terrain(terrain, glb_scene, count, range, grass) {
     const raycaster = new THREE.Raycaster();
     const down = new THREE.Vector3(0, -1, 0);
     const placed = [];
@@ -151,7 +159,8 @@ function place_on_terrain(terrain, glb_scene, count, range) {
         // casts rays down from random position in sky
         raycaster.set(new THREE.Vector3(x, 20, z), down);
         const hits = raycaster.intersectObject(terrain, true);
-        if (hits.length > 0) {
+        // if the ray hit something above the water plane level
+        if (hits.length > 0 && hits[0].point.y > (grass ? g_water_level : g_water_level + 1)) {
             // creates a tree on first intersection point
             const tree = setup_glb_tree_model({ scene: glb_scene.clone(true) }, hits[0].point);
             // random y rotation
@@ -187,10 +196,17 @@ function generate_terrain() {
             freq *= g_lacunarity;
         }
 
+        // blends sampled noise with the ocean floor, increasingly as we approach
+        // edges of ground plane. this makes islands look natural and prevents jagged edges 
+        // at edge of ground plane
+
+        const norm_dist = Math.sqrt(x * x + y * y) / (g_world_size / 2);
+        const lerp = smoothstep(norm_dist);
+        z_value = z_value * (1 - lerp) + g_edge_depth * lerp;
+        
         pos.setZ(i, z_value);
     }
 
-    // compute new normals
     ground_plane.computeVertexNormals();
 
     const mesh = new THREE.Mesh(ground_plane, g_mat_ground);
@@ -202,6 +218,13 @@ function generate_terrain() {
     // so the Raycaster sees the rotation (when placing vegetation)
     mesh.updateMatrixWorld(true);
     return mesh;
+}
+
+// https://en.wikipedia.org/wiki/Smoothstep
+function smoothstep(norm_dist) {
+    // clamp / convert to [0,1]
+    const clamped = Math.min(1, Math.max(0, norm_dist - g_island_size / (1 - g_island_size) ));
+    return clamped * clamped * (3.0 - 2.0 * clamped);
 }
 
 async function load_models() {
@@ -229,6 +252,7 @@ async function load_models() {
 }
 
 function regenerate_world() {
+    // free memory from old objects
     for (let i = 0; i < g_mod_objects.length; i++) {
         g_scene.remove(g_mod_objects[i]);
     }
@@ -238,16 +262,36 @@ function regenerate_world() {
         g_terrain.geometry.dispose();
     }
 
+    // generate new objects
     g_terrain = generate_terrain();
-    const vegetation = place_on_terrain(g_terrain, g_pine1_glb.scene, Math.trunc(g_pine_count / 3), g_world_size)
-          .concat(place_on_terrain(g_terrain, g_pine2_glb.scene, Math.trunc(g_pine_count / 3), g_world_size))
-          .concat(place_on_terrain(g_terrain, g_pine3_glb.scene, Math.trunc(g_pine_count / 3), g_world_size))
-          .concat(place_on_terrain(g_terrain, g_fern_glb.scene, g_fern_count, g_world_size))
-          .concat(place_on_terrain(g_terrain, g_grass_glb.scene, g_grass_count, g_world_size));
+    const vegetation = place_on_terrain(g_terrain, g_pine1_glb.scene, Math.trunc(g_pine_count / 3), g_world_size, false)
+          .concat(place_on_terrain(g_terrain, g_pine2_glb.scene, Math.trunc(g_pine_count / 3), g_world_size, false))
+          .concat(place_on_terrain(g_terrain, g_pine3_glb.scene, Math.trunc(g_pine_count / 3), g_world_size, false))
+          .concat(place_on_terrain(g_terrain, g_fern_glb.scene, g_fern_count, g_world_size, false))
+          .concat(place_on_terrain(g_terrain, g_grass_glb.scene, g_grass_count, g_world_size, true));
 
+    if (!g_water) {
+        const water_geo = new THREE.PlaneGeometry(g_world_size * 2, g_world_size*2, g_world_divs*2, g_world_divs*2);
+        
+        const water_mat = new THREE.MeshPhongMaterial({
+            normalMap:  g_water_norm,
+            color:      0x0000ff
+        });
+
+        g_water = new THREE.Mesh(water_geo, water_mat);
+        g_water.rotation.x = -Math.PI / 2;
+        g_water.receiveShadow = true;
+        g_water.castShadow = false;
+        g_water.position.y = g_water_level;
+        g_water.updateMatrixWorld(true);
+    }
+
+    // add objects to scene
     g_mod_objects = vegetation;
     for (let i = 0; i < g_mod_objects.length; i++) g_scene.add(g_mod_objects[i]);
     g_scene.add(g_terrain);
+    g_scene.add(g_water);
+    
 }
 
 function update_camera_settings() {
@@ -286,7 +330,7 @@ function init_camera() {
     g_gui.add(g_camera, 'near', .1, 50);
     g_gui.add(g_camera, 'far', 1, 1000);
 
-    const controls = new OrbitControls(g_camera, g_renderer.domElement);
+    g_controls = new OrbitControls(g_camera, g_renderer.domElement);
     //controls.target.set(0,5,0); controls.update();
 }
 
@@ -325,15 +369,6 @@ function set_ground_texture_params(tex) {
 function load_textures() {
     const loader = new THREE.TextureLoader();
 
-    g_tex_stone = loader.load('../resources/stone-brick.png');
-    g_tex_wood = loader.load('../resources/wood.png');
-
-    g_tex_stone.colorSpace = THREE.SRGBColorSpace;
-    g_tex_wood.colorSpace = THREE.SRGBColorSpace;
-
-    g_mat_phong_stone = new THREE.MeshPhongMaterial({map: g_tex_stone});
-    g_mat_phong_wood = new THREE.MeshPhongMaterial({map: g_tex_wood});
-
     const ground_base = set_ground_texture_params(loader.load('../resources/ground/textures/1K-ground_11_basecolor.png'));
     const ground_ao = set_ground_texture_params(loader.load('../resources/ground/textures/1K-ground_11_ambientocclusion.png'));
     const ground_bump = set_ground_texture_params(loader.load('../resources/ground/textures/1K-ground_11_height.png'));
@@ -354,9 +389,9 @@ function load_textures() {
         side:         THREE.DoubleSide  // need double sided for raycaster
     });
 
+     g_water_norm = set_ground_texture_params(loader.load('../resources/waternormals.jpg'));
 
-
-    // sky box cube map
+    // sky box panorama
     g_tex_background = loader.load('../resources/sky2.png', () => {
         g_tex_background.mapping = THREE.EquirectangularRefractionMapping;
         g_tex_background.colorSpace = THREE.SRGBColorSpace;
