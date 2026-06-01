@@ -272,7 +272,7 @@ function regenerate_world() {
 
     if (!g_water) {
         const water_geo = new THREE.PlaneGeometry(g_world_size * 2, g_world_size*2, g_world_divs*2, g_world_divs*2);
-        
+
         const water_mat = new THREE.MeshPhongMaterial({
             normalMap:  g_water_norm,
             color:      0x0000ff
@@ -291,7 +291,11 @@ function regenerate_world() {
     for (let i = 0; i < g_mod_objects.length; i++) g_scene.add(g_mod_objects[i]);
     g_scene.add(g_terrain);
     g_scene.add(g_water);
-    
+
+    const btn = document.getElementById('btn_regen');
+    btn.textContent = 'Generate World';
+    btn.classList.remove('generating');
+    btn.disabled = false;
 }
 
 function update_camera_settings() {
@@ -315,7 +319,13 @@ function init_html_ui_elements() {
     document.getElementById('s_pine_count').addEventListener('input',  function() { g_pine_count  = parseInt(this.value); });
     document.getElementById('s_fern_count').addEventListener('input',  function() { g_fern_count  = parseInt(this.value); });
     document.getElementById('s_grass_count').addEventListener('input', function() { g_grass_count = parseInt(this.value); });
-    document.getElementById('btn_regen').addEventListener('click', regenerate_world);
+    document.getElementById('btn_regen').addEventListener('click', () => {
+        const btn = document.getElementById('btn_regen');
+        btn.textContent = 'Generating...';
+        btn.classList.add('generating');
+        btn.disabled = true;
+        setTimeout(regenerate_world, 0);
+    });
 }
 
 function init_camera() {

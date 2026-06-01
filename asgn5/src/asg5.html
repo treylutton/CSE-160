@@ -43,7 +43,7 @@
         bottom: auto;
       }
 
-        /* --- collapsible settings tab --- */
+  /* --- collapsible settings tab --- */
       details.settings {
         width: 100%;
         max-width: 640px;
@@ -161,6 +161,7 @@
       }
 
       #btn_regen:hover  { background: #027551; }
+      #btn_regen.generating { background: #7a1a1a; cursor: not-allowed; }
 
       kbd {
         display: inline-block;
@@ -188,7 +189,7 @@
       </canvas>
     </div>
 
-    <button id="btn_regen">Generate World</button>
+    <button id="btn_regen" class="generating" disabled>Generating...</button>
 
     <details class="settings">
       <summary>World Generation Settings</summary>
