@@ -52,10 +52,12 @@ let g_fern_glb;
 let g_models_loaded = false;
 // WORLD OBJECT ARRAYS
 let g_lights = [];
+let g_sun;
 let g_mod_objects = [];
 let g_terrain;
 let g_water;
 // ANIMATION GLOBALS
+let g_prev_time = 0;
 let g_wind_freq = 2.0;
 let g_wind_amp  = 0.02;
 let g_wind_x    = 1.0;
@@ -252,6 +254,14 @@ async function load_models() {
 }
 
 function regenerate_world() {
+    // update sun shadow camera frustrum to fit the selected world size
+    const half = g_world_size / 2;
+    g_sun.shadow.camera.left   = -half;
+    g_sun.shadow.camera.right  =  half;
+    g_sun.shadow.camera.top    =  half;
+    g_sun.shadow.camera.bottom = -half;
+    g_sun.shadow.camera.updateProjectionMatrix();
+
     // free memory from old objects
     for (let i = 0; i < g_mod_objects.length; i++) {
         g_scene.remove(g_mod_objects[i]);
@@ -348,6 +358,8 @@ function init_renderer() {
     g_renderer = new THREE.WebGLRenderer({antialias: true, canvas: g_canvas});
     g_renderer.setSize(g_canvas.width, g_canvas.height);
     g_renderer.shadowMap.enabled = true;
+    g_renderer.shadowMap.type = THREE.PCFShadowMap;
+    //g_renderer.shadowMap.type = THREE.VSMShadowMap; -- looks great but significant performance hit
 }
 
 function create_scene() {
@@ -416,25 +428,19 @@ function create_mesh(geometry, material, position) {
 }
 
 function create_lights() {
-    
-    // lights
-    const directional = new THREE.DirectionalLight(0xffff00, .5);
-    directional.position.set(0,50,100);
-    directional.castShadow = true;
     //https://github.com/mrdoob/three.js/blob/master/src/lights/LightShadow.js
-    directional.shadow.camera.left   = -100;
-    directional.shadow.camera.right  =  100;
-    directional.shadow.camera.top    =  100;
-    directional.shadow.camera.bottom = -100;
-    directional.shadow.normalBias = 1;
-    directional.shadow.bias = 0.0002;
-    directional.shadow.blurSamples = 16;
+    g_sun = new THREE.DirectionalLight(0xffff00, .5);
+    g_sun.position.set(0, 50, 100);
+    g_sun.castShadow = true;
+    g_sun.shadow.mapSize.width  = 2048;
+    g_sun.shadow.mapSize.height = 2048;
+    g_sun.shadow.normalBias = 1;
+    g_sun.shadow.bias = 0.0002;
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.2);
     const hem = new THREE.HemisphereLight( 0xffccaa, 0x000000, .3 );
 
-    
-    g_lights.push(directional, hem, ambient);
+    g_lights.push(g_sun, hem, ambient);
 }
 
 function update_uniforms(shader, time, grass, fern, tree) {
@@ -448,6 +454,11 @@ function update_uniforms(shader, time, grass, fern, tree) {
 
 function animate(time) {
     if (!g_scene) return;
+
+    const duration = time - g_prev_time;
+    g_prev_time = time;
+    document.getElementById('p_performance').innerHTML =
+        'fps: ' + Math.floor(1000 / duration) + '<br>ms: ' + Math.floor(duration);
 
     time *= 0.001;  // seconds
     

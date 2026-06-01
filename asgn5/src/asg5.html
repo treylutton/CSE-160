@@ -35,6 +35,16 @@
         position: relative;
       }
 
+      #p_performance {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        margin: 0;
+        color: #aaa;
+        font-family: monospace;
+        font-size: 0.8rem;
+      }
+
       #canvas-container .lil-gui {
         position: absolute;
         top: 0;
@@ -187,6 +197,7 @@
       <canvas id="c" width="900" height="600">
         Please use a browser that supports "canvas"
       </canvas>
+      <p id="p_performance"></p>
     </div>
 
     <button id="btn_regen" class="generating" disabled>Generating...</button>
