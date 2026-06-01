@@ -70,16 +70,16 @@ let g_childnames_trunks = ["Pine_2_1", "Pine_4_1", "Pine_5_1"];
 let g_childnames_grass  = ["Grass_Common_Short"]
 let g_childnames_fern   = ["Fern_1"];
 // procedural terrain generation
-let g_layers = 4;
-let g_persistence = 0.5;
+let g_layers = 8;
+let g_persistence = 0.4;
 let g_lacunarity = 2.0;
 let g_layer0_freq = 0.01;
 let g_layer0_amp  = 10;
 let g_world_size = 150;
 let g_world_divs = 100;
-let g_pine_count = 100;
-let g_fern_count = 50;
-let g_grass_count = 1000;
+let g_pine_count = 40;
+let g_fern_count = 40;
+let g_grass_count = 500;
 // terrain smoothing (islands) and water tuners
 let g_island_size = 0.3;   // normalized dist from center where smoothing to ocean floor starts
 let g_edge_depth = -5;      // guaranteed world space ground plane Y coordinate at edges
@@ -114,7 +114,7 @@ function setup_glb_tree_model(glb, position) {
             // get some insight into the different objects in the model (floods console with procedural generation)
             //console.log(child.name, child.material.map);
             // disable transparency (May change this back, seems to make the tree .glb models look better)
-            //child.material.transarent = false;
+            child.material.transarent = false;
 
             const leaves = g_childnames_leaves.includes(child.name);
             const trunk = g_childnames_trunks.includes(child.name);
@@ -122,6 +122,8 @@ function setup_glb_tree_model(glb, position) {
             const fern = g_childnames_fern.includes(child.name);
 
             child.material.side = THREE.DoubleSide;
+            child.material.envMapIntensity = 0.5;
+            child.material.depthWrite = true;
             child.castShadow = !grass; // since blades are so small this looks weird with light source far away
             child.receiveShadow = true;
 
@@ -149,7 +151,7 @@ function setup_glb_tree_model(glb, position) {
 }
 
 // https://threejs.org/docs/#api/en/core/Raycaster.intersectObject
-function place_on_terrain(terrain, glb_scene, count, range, grass) {
+function place_on_terrain(terrain, glb_scene, count, range, grass, fern) {
     const raycaster = new THREE.Raycaster();
     const down = new THREE.Vector3(0, -1, 0);
     const placed = [];
@@ -162,7 +164,7 @@ function place_on_terrain(terrain, glb_scene, count, range, grass) {
         raycaster.set(new THREE.Vector3(x, 20, z), down);
         const hits = raycaster.intersectObject(terrain, true);
         // if the ray hit something above the water plane level
-        if (hits.length > 0 && hits[0].point.y > (grass ? g_water_level : g_water_level + 1)) {
+        if (hits.length > 0 && hits[0].point.y > ((grass) ? g_water_level : g_water_level + (fern ? 0.5 : 1.5))) {
             // creates a tree on first intersection point
             const tree = setup_glb_tree_model({ scene: glb_scene.clone(true) }, hits[0].point);
             // random y rotation
@@ -175,7 +177,7 @@ function place_on_terrain(terrain, glb_scene, count, range, grass) {
 
 function generate_terrain() {
     const noise2D = createNoise2D();
-    const ground_plane = new THREE.PlaneGeometry(g_world_size, g_world_size, g_world_divs, g_world_divs);
+    const ground_plane = new THREE.PlaneGeometry(g_world_size* 1.5, g_world_size *1.5, g_world_divs, g_world_divs);
     // get the entire vertex position buffer
     const pos = ground_plane.attributes.position;
 
@@ -225,7 +227,7 @@ function generate_terrain() {
 // https://en.wikipedia.org/wiki/Smoothstep
 function smoothstep(norm_dist) {
     // clamp / convert to [0,1]
-    const clamped = Math.min(1, Math.max(0, norm_dist - g_island_size / (1 - g_island_size) ));
+    const clamped = Math.min(1, Math.max(0, (norm_dist - g_island_size) / (1 - g_island_size)));
     return clamped * clamped * (3.0 - 2.0 * clamped);
 }
 
@@ -274,18 +276,21 @@ function regenerate_world() {
 
     // generate new objects
     g_terrain = generate_terrain();
-    const vegetation = place_on_terrain(g_terrain, g_pine1_glb.scene, Math.trunc(g_pine_count / 3), g_world_size, false)
-          .concat(place_on_terrain(g_terrain, g_pine2_glb.scene, Math.trunc(g_pine_count / 3), g_world_size, false))
-          .concat(place_on_terrain(g_terrain, g_pine3_glb.scene, Math.trunc(g_pine_count / 3), g_world_size, false))
-          .concat(place_on_terrain(g_terrain, g_fern_glb.scene, g_fern_count, g_world_size, false))
-          .concat(place_on_terrain(g_terrain, g_grass_glb.scene, g_grass_count, g_world_size, true));
+    const vegetation = place_on_terrain(g_terrain, g_pine1_glb.scene, Math.trunc(g_pine_count / 3), g_world_size, false, false)
+          .concat(place_on_terrain(g_terrain, g_pine2_glb.scene, Math.trunc(g_pine_count / 3), g_world_size, false, false))
+          .concat(place_on_terrain(g_terrain, g_pine3_glb.scene, Math.trunc(g_pine_count / 3), g_world_size, false, false))
+          .concat(place_on_terrain(g_terrain, g_fern_glb.scene, g_fern_count, g_world_size, false, true))
+          .concat(place_on_terrain(g_terrain, g_grass_glb.scene, g_grass_count, g_world_size, true, false));
 
     if (!g_water) {
         const water_geo = new THREE.PlaneGeometry(g_world_size * 2, g_world_size*2, g_world_divs*2, g_world_divs*2);
 
         const water_mat = new THREE.MeshPhongMaterial({
-            normalMap:  g_water_norm,
-            color:      0x0000ff
+            normalMap:   g_water_norm,
+            color:       0x3388ff,
+            transparent: true,
+            opacity:     0.7,
+            
         });
 
         g_water = new THREE.Mesh(water_geo, water_mat);
@@ -303,7 +308,7 @@ function regenerate_world() {
     g_scene.add(g_water);
 
     const btn = document.getElementById('btn_regen');
-    btn.textContent = 'Generate World';
+    btn.textContent = 'Generate Island';
     btn.classList.remove('generating');
     btn.disabled = false;
 }

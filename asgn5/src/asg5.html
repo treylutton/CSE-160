@@ -225,8 +225,8 @@
         <summary>Noise Layers</summary>
         <div class="slider-group">
           <div class="slider-item">
-            <label>Layers <span id="v_layers">4</span></label>
-            <input type="range" min="1" max="8" value="4" id="s_layers"
+            <label>Layers <span id="v_layers">8</span></label>
+            <input type="range" min="1" max="8" value="8" id="s_layers"
                    oninput="document.getElementById('v_layers').textContent = this.value">
           </div>
           <div class="slider-item">
@@ -246,8 +246,8 @@
         <summary>Layer Modifiers</summary>
         <div class="slider-group">
           <div class="slider-item">
-            <label>Persistence <span id="v_persistence">0.50</span></label>
-            <input type="range" min="1" max="100" value="50" id="s_persistence"
+            <label>Persistence <span id="v_persistence">0.40</span></label>
+            <input type="range" min="1" max="100" value="40" id="s_persistence"
                    oninput="document.getElementById('v_persistence').textContent = (this.value/100).toFixed(2)">
           </div>
           <div class="slider-item">
@@ -262,18 +262,18 @@
         <summary>Vegetation</summary>
         <div class="slider-group">
           <div class="slider-item">
-            <label>Pine Count <span id="v_pine_count">100</span></label>
-            <input type="range" min="0" max="200" step="5" value="100" id="s_pine_count"
+            <label>Pine Count <span id="v_pine_count">40</span></label>
+            <input type="range" min="0" max="200" step="5" value="40" id="s_pine_count"
                    oninput="document.getElementById('v_pine_count').textContent = this.value">
           </div>
           <div class="slider-item">
-            <label>Fern Count <span id="v_fern_count">50</span></label>
-            <input type="range" min="0" max="100" step="5" value="50" id="s_fern_count"
+            <label>Fern Count <span id="v_fern_count">40</span></label>
+            <input type="range" min="0" max="100" step="5" value="40" id="s_fern_count"
                    oninput="document.getElementById('v_fern_count').textContent = this.value">
           </div>
           <div class="slider-item">
-            <label>Grass Count <span id="v_grass_count">1000</span></label>
-            <input type="range" min="0" max="2000" step="50" value="1000" id="s_grass_count"
+            <label>Grass Count <span id="v_grass_count">500</span></label>
+            <input type="range" min="0" max="2000" step="50" value="500" id="s_grass_count"
                    oninput="document.getElementById('v_grass_count').textContent = this.value">
           </div>
         </div>
@@ -282,7 +282,7 @@
     </details>
 
     <details class="settings">
-      <summary>Wind Settings</summary>
+      <summary>Vegetation Sway Settings</summary>
       <div class="slider-group">
 
         <div class="slider-item">
