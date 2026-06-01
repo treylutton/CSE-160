@@ -68,7 +68,7 @@ let g_layers = 4;
 let g_persistence = 0.5;
 let g_lacunarity = 2.0;
 let g_layer0_freq = 0.01;
-let g_layer0_amp  = 5;
+let g_layer0_amp  = 7;
 let g_world_size = 150;
 let g_world_divs = 100;
 let g_pine_count = 100;
@@ -316,7 +316,7 @@ function create_scene() {
 function set_ground_texture_params(tex) {
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(1, 1);
+    tex.repeat.set(50, 50);
     tex.minFilter = THREE.LinearMipmapNearestFilter;
     tex.magFilter = THREE.LinearFilter;
     return tex;
