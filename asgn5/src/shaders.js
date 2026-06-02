@@ -1,4 +1,4 @@
-// shared wind uniforms for all tree parts
+// shared wind uniforms for all vegetation
 export const WIND_UNIFORMS_GLSL = `
     uniform float u_time;
     uniform float u_wind_freq;

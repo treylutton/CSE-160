@@ -4,7 +4,13 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { WIND_UNIFORMS_GLSL, WIND_PROJECT_VERTEX_GLSL } from './shaders.js';
 import { createNoise2D } from 'simplex-noise';
+import { Sky } from 'three/addons/objects/Sky.js';
+import { Water } from 'three/addons/objects/Water.js';
 
+// sky
+let g_sky;
+let g_sun_elevation = 3;
+let g_sun_azimuth   = 180;
 // GLOBALS
 let g_renderer;
 let g_scene;
@@ -83,7 +89,7 @@ let g_grass_count = 500;
 // terrain smoothing (islands) and water tuners
 let g_island_size = 0.3;   // normalized dist from center where smoothing to ocean floor starts
 let g_edge_depth = -5;      // guaranteed world space ground plane Y coordinate at edges
-let g_water_level = -1;
+let g_water_level = 1;
 
 function deg_to_rad(deg) {
     return deg * (Math.PI / 180);
@@ -105,11 +111,11 @@ function inject_wind_shaders(shader, project_vertex_chunk, grass) {
 // is a function that converts their models to my preferences (& sets position)
 function setup_glb_tree_model(glb, position) {
     // set the model position (hardcoded in load_models)
-    glb.scene.position.copy(position);
+    glb.position.copy(position);
 
     // traverses the glb object tree
     // modifies certain fields and injects vertex shader code for wind sway
-    glb.scene.traverse(child => {
+    glb.traverse(child => {
         if (child.isMesh) {
             // get some insight into the different objects in the model (floods console with procedural generation)
             //console.log(child.name, child.material.map);
@@ -136,8 +142,8 @@ function setup_glb_tree_model(glb, position) {
 
                 // https://threejs.org/docs/?q=customD#Object3D.customDepthMaterial
                 // makes shadows animate with trees.
-                const depthMat = new THREE.MeshDepthMaterial({  });
-                depthMat.onBeforeCompile = function (shader) {
+                const depthMat = new THREE.MeshDepthMaterial();
+                depthMat.onBeforeCompile = shader => {
                     inject_wind_shaders(shader, WIND_PROJECT_VERTEX_GLSL, grass);
                     child.userData.depthShader = shader;
                 };
@@ -147,7 +153,7 @@ function setup_glb_tree_model(glb, position) {
 
     })
 
-    return glb.scene;
+    return glb;
 }
 
 // https://threejs.org/docs/#api/en/core/Raycaster.intersectObject
@@ -166,7 +172,7 @@ function place_on_terrain(terrain, glb_scene, count, range, grass, fern) {
         // if the ray hit something above the water plane level
         if (hits.length > 0 && hits[0].point.y > ((grass) ? g_water_level : g_water_level + (fern ? 0.5 : 1.5))) {
             // creates a tree on first intersection point
-            const tree = setup_glb_tree_model({ scene: glb_scene.clone(true) }, hits[0].point);
+            const tree = setup_glb_tree_model(glb_scene.clone(true), hits[0].point);
             // random y rotation
             tree.rotation.y = Math.random() * Math.PI * 2;
             placed.push(tree);
@@ -177,7 +183,7 @@ function place_on_terrain(terrain, glb_scene, count, range, grass, fern) {
 
 function generate_terrain() {
     const noise2D = createNoise2D();
-    const ground_plane = new THREE.PlaneGeometry(g_world_size* 1.5, g_world_size *1.5, g_world_divs, g_world_divs);
+    const ground_plane = new THREE.PlaneGeometry(g_world_size, g_world_size, g_world_divs, g_world_divs);
     // get the entire vertex position buffer
     const pos = ground_plane.attributes.position;
 
@@ -203,7 +209,6 @@ function generate_terrain() {
         // blends sampled noise with the ocean floor, increasingly as we approach
         // edges of ground plane. this makes islands look natural and prevents jagged edges 
         // at edge of ground plane
-
         const norm_dist = Math.sqrt(x * x + y * y) / (g_world_size / 2);
         const lerp = smoothstep(norm_dist);
         z_value = z_value * (1 - lerp) + g_edge_depth * lerp;
@@ -216,6 +221,7 @@ function generate_terrain() {
     const mesh = new THREE.Mesh(ground_plane, g_mat_ground);
     // rotate the mesh from XY plane to XZ plane
     mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = 2;
     mesh.receiveShadow = true;
     mesh.castShadow = true;
     // update the global terrain transform matrix
@@ -233,20 +239,6 @@ function smoothstep(norm_dist) {
 
 async function load_models() {
     const loader = new GLTFLoader();
-
-    // custom terrain I made in blender before adding procedural generation
-    //const terrainGlb = await loader.loadAsync('../resources/terrain.glb');
-    //const terrain = terrainGlb.scene;
-    //terrain.traverse(child => {
-    //    if (child.isMesh) {
-    //        child.material = g_mat_ground;
-    //        child.receiveShadow = true;
-    //    }
-    //});
-    //terrain.updateWorldMatrix(true,true); */
-
-    // load each pine type once, then scatter copies across terrain
-    // range is world-space units — tune to match your terrain footprint
     g_pine1_glb = await loader.loadAsync('../resources/pine-1.glb');
     g_pine2_glb = await loader.loadAsync('../resources/pine-2.glb');
     g_pine3_glb = await loader.loadAsync('../resources/pine-3.glb');
@@ -282,36 +274,40 @@ function regenerate_world() {
           .concat(place_on_terrain(g_terrain, g_fern_glb.scene, g_fern_count, g_world_size, false, true))
           .concat(place_on_terrain(g_terrain, g_grass_glb.scene, g_grass_count, g_world_size, true, false));
 
-    if (!g_water) {
-        const water_geo = new THREE.PlaneGeometry(g_world_size * 2, g_world_size*2, g_world_divs*2, g_world_divs*2);
-
-        const water_mat = new THREE.MeshPhongMaterial({
-            normalMap:   g_water_norm,
-            color:       0x3388ff,
-            transparent: true,
-            opacity:     0.7,
-            
-        });
-
-        g_water = new THREE.Mesh(water_geo, water_mat);
-        g_water.rotation.x = -Math.PI / 2;
-        g_water.receiveShadow = true;
-        g_water.castShadow = false;
-        g_water.position.y = g_water_level;
-        g_water.updateMatrixWorld(true);
-    }
+    if (!g_water) create_water();
 
     // add objects to scene
     g_mod_objects = vegetation;
     for (let i = 0; i < g_mod_objects.length; i++) g_scene.add(g_mod_objects[i]);
-    g_scene.add(g_terrain);
-    g_scene.add(g_water);
+    g_scene.add(g_terrain, g_water);
 
     const btn = document.getElementById('btn_regen');
     btn.textContent = 'Generate Island';
     btn.classList.remove('generating');
     btn.disabled = false;
 }
+
+
+function create_water() {
+    const water_geo = new THREE.PlaneGeometry(1600, 1600);
+
+    g_water = new Water(water_geo, {
+        textureWidth:    512,
+        textureHeight:   512,
+        waterNormals:    g_water_norm,
+        sunDirection:    g_sun.position.clone().normalize(),
+        sunColor:        0xffffcc,
+        waterColor:      0x0C5070,
+        distortionScale: 3.7,
+    });
+
+    g_water.rotation.x = -Math.PI / 2;
+    g_water.receiveShadow = false;
+    g_water.position.y = g_water_level;
+    g_water.updateMatrixWorld(true);
+}
+
+
 
 function update_camera_settings() {
     g_camera.updateProjectionMatrix();
@@ -347,13 +343,13 @@ function init_camera() {
     const fov = 75;
     const aspect = g_canvas.width / g_canvas.height;  // the canvas default
     const near = 1;
-    const far = 250;
+    const far = 1200;
     g_camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
     g_camera.position.set(g_camera_X, g_camera_Y, g_camera_Z);
 
     g_gui.add(g_camera, 'fov', 1, 180);
     g_gui.add(g_camera, 'near', .1, 50);
-    g_gui.add(g_camera, 'far', 1, 1000);
+    g_gui.add(g_camera, 'far', 1, 2000);
 
     g_controls = new OrbitControls(g_camera, g_renderer.domElement);
     //controls.target.set(0,5,0); controls.update();
@@ -364,7 +360,8 @@ function init_renderer() {
     g_renderer.setSize(g_canvas.width, g_canvas.height);
     g_renderer.shadowMap.enabled = true;
     g_renderer.shadowMap.type = THREE.PCFShadowMap;
-    //g_renderer.shadowMap.type = THREE.VSMShadowMap; -- looks great but significant performance hit
+    // synchronize shadowMap update to my render loop
+    g_renderer.shadowMap.autoUpdate = false;
 }
 
 function create_scene() {
@@ -380,8 +377,8 @@ function create_scene() {
         g_scene.add(g_mod_objects[i]);
     }
 
-    // set background
-    g_scene.background = g_tex_background;
+    g_scene.add(g_sky);
+    g_scene.fog = new THREE.FogExp2(0xE08582, 0.001);
 }
 
 function set_ground_texture_params(tex) {
@@ -416,13 +413,10 @@ function load_textures() {
         side:         THREE.DoubleSide  // need double sided for raycaster
     });
 
-     g_water_norm = set_ground_texture_params(loader.load('../resources/waternormals.jpg'));
-
-    // sky box panorama
-    g_tex_background = loader.load('../resources/sky2.png', () => {
-        g_tex_background.mapping = THREE.EquirectangularRefractionMapping;
-        g_tex_background.colorSpace = THREE.SRGBColorSpace;
-    });
+    g_water_norm = loader.load('../resources/waternormals.jpg');
+    g_water_norm.wrapS = THREE.RepeatWrapping;
+    g_water_norm.wrapT = THREE.RepeatWrapping;
+    g_water_norm.repeat.set(30, 30);
 }
 
 
@@ -432,18 +426,40 @@ function create_mesh(geometry, material, position) {
     return mesh;
 }
 
+function create_sky() {
+    g_sky = new Sky();
+    g_sky.scale.setScalar(4500);
+
+    // uniform list
+    // https://github.com/mrdoob/three.js/blob/master/examples/jsm/objects/Sky.js
+    const uniforms = g_sky.material.uniforms;
+    uniforms['turbidity'].value        = 100;
+    uniforms['rayleigh'].value         = 2;
+    uniforms['mieCoefficient'].value   = 0.00004;
+    uniforms['mieDirectionalG'].value  = 0.1;
+
+    const sun_dir = new THREE.Vector3();
+    sun_dir.setFromSphericalCoords(1, deg_to_rad(90 - g_sun_elevation), deg_to_rad(g_sun_azimuth));
+    uniforms['sunPosition'].value.copy(sun_dir);
+
+    // raises light angle above the visual sun - shorter shadows
+    const light_dir = new THREE.Vector3();
+    light_dir.setFromSphericalCoords(1, deg_to_rad(90 - (g_sun_elevation + 15)), deg_to_rad(g_sun_azimuth));
+    g_sun.position.copy(light_dir).multiplyScalar(60);
+}
+
 function create_lights() {
     //https://github.com/mrdoob/three.js/blob/master/src/lights/LightShadow.js
-    g_sun = new THREE.DirectionalLight(0xffff00, .5);
-    g_sun.position.set(0, 50, 100);
+    g_sun = new THREE.DirectionalLight(0xffffcc, .8);
     g_sun.castShadow = true;
     g_sun.shadow.mapSize.width  = 2048;
     g_sun.shadow.mapSize.height = 2048;
-    g_sun.shadow.normalBias = 1;
-    g_sun.shadow.bias = 0.0002;
+    g_sun.shadow.normalBias = .14;
+    g_sun.shadow.camera.near = 10;
+    g_sun.shadow.camera.far  = 120;
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.2);
-    const hem = new THREE.HemisphereLight( 0xffccaa, 0x000000, .3 );
+    const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+    const hem = new THREE.HemisphereLight( 0xaaaaff, 0x334466, .2);
 
     g_lights.push(g_sun, hem, ambient);
 }
@@ -483,9 +499,14 @@ function animate(time) {
         }
     });
 
+    // pass time to built in water shaders
+    g_water.material.uniforms['time'].value = time * 0.3;
+
     update_camera_settings();
 
-    // render scene
+    // trigger shadow update
+    g_renderer.shadowMap.needsUpdate = true;
+
     g_renderer.render(g_scene, g_camera);
 
     // render again
@@ -500,6 +521,7 @@ function main() {
 
     // creates the scene
     create_lights();
+    create_sky();
     create_scene();
     regenerate_world();
 
