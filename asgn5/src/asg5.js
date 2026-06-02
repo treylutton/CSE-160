@@ -64,6 +64,8 @@ let g_terrain;
 let g_water;
 // ANIMATION GLOBALS
 let g_prev_time = 0;
+let g_frame = 0;
+let performance_element;
 let g_wind_freq = 2.0;
 let g_wind_amp  = 0.02;
 let g_wind_x    = 1.0;
@@ -71,10 +73,12 @@ let g_wind_z    = 1.0;
 let g_wind_rip  = 0.5;
 let g_grass_amp = 10.0;
 // glb children (vegetation wind toggle for these child names)
-let g_childnames_leaves = ["Pine_2_2", "Pine_4_2", "Pine_5_2"];
-let g_childnames_trunks = ["Pine_2_1", "Pine_4_1", "Pine_5_1"];
-let g_childnames_grass  = ["Grass_Common_Short"]
-let g_childnames_fern   = ["Fern_1"];
+const g_childnames_leaves = new Set(["Pine_2_2", "Pine_4_2", "Pine_5_2"]);
+const g_childnames_trunks = new Set(["Pine_2_1", "Pine_4_1", "Pine_5_1"]);
+const g_childnames_grass  = new Set(["Grass_Common_Short"]);
+const g_childnames_fern   = new Set(["Fern_1"]);
+// cache of all wind-animated meshes built during vegetation placement
+let g_wind_mesh_list = [];
 // procedural terrain generation
 let g_layers = 8;
 let g_persistence = 0.4;
@@ -122,10 +126,10 @@ function setup_glb_tree_model(glb, position) {
             // disable transparency (May change this back, seems to make the tree .glb models look better)
             child.material.transarent = false;
 
-            const leaves = g_childnames_leaves.includes(child.name);
-            const trunk = g_childnames_trunks.includes(child.name);
-            const grass = g_childnames_grass.includes(child.name);
-            const fern = g_childnames_fern.includes(child.name);
+            const leaves = g_childnames_leaves.has(child.name);
+            const trunk = g_childnames_trunks.has(child.name);
+            const grass = g_childnames_grass.has(child.name);
+            const fern = g_childnames_fern.has(child.name);
 
             child.material.side = THREE.DoubleSide;
             child.material.envMapIntensity = 0.5;
@@ -134,6 +138,7 @@ function setup_glb_tree_model(glb, position) {
             child.receiveShadow = true;
 
             if (leaves || trunk || grass || fern) {
+                g_wind_mesh_list.push({ mesh: child, grass, fern, tree: leaves || trunk });
 
                 child.material.onBeforeCompile = function (shader) {
                     inject_wind_shaders(shader, WIND_PROJECT_VERTEX_GLSL, grass);
@@ -248,6 +253,8 @@ async function load_models() {
 }
 
 function regenerate_world() {
+    g_wind_mesh_list = [];
+
     // update sun shadow camera frustrum to fit the selected world size
     const half = g_world_size / 2;
     g_sun.shadow.camera.left   = -half;
@@ -289,7 +296,7 @@ function regenerate_world() {
 
 
 function create_water() {
-    const water_geo = new THREE.PlaneGeometry(1600, 1600);
+    const water_geo = new THREE.PlaneGeometry(2000, 2000);
 
     g_water = new Water(water_geo, {
         textureWidth:    512,
@@ -298,38 +305,40 @@ function create_water() {
         sunDirection:    g_sun.position.clone().normalize(),
         sunColor:        0xffffcc,
         waterColor:      0x0C5070,
-        distortionScale: 3.7,
+        distortionScale: 10,
+        colorSpace: THREE.SRGBColorSpace,
+        fog: g_scene.fog
     });
-
+    g_water.material.fog = true;
     g_water.rotation.x = -Math.PI / 2;
     g_water.receiveShadow = false;
     g_water.position.y = g_water_level;
     g_water.updateMatrixWorld(true);
+
 }
 
 
 
-function update_camera_settings() {
-    g_camera.updateProjectionMatrix();
-}
 
 function init_html_ui_elements() {
     g_canvas = document.getElementById('c');
+    performance_element = document.getElementById('p_performance');
     document.getElementById('s_wind_freq').addEventListener('input', function() { g_wind_freq = this.value / 10.0;});
     document.getElementById('s_wind_amp').addEventListener('input', function() { g_wind_amp = this.value / 100.0;});
     document.getElementById('s_wind_x').addEventListener('input', function() { g_wind_x = this.value / 10.0; });
     document.getElementById('s_wind_z').addEventListener('input', function() { g_wind_z = this.value / 10.0; });
     document.getElementById('s_wind_rip').addEventListener('input', function() { g_wind_rip = this.value / 10.0; });
-    document.getElementById('s_layers').addEventListener('input',      function() { g_layers      = parseInt(this.value); });
+    document.getElementById('s_layers').addEventListener('input',      function() { g_layers      = this.value; });
     document.getElementById('s_persistence').addEventListener('input', function() { g_persistence = this.value / 100.0; });
     document.getElementById('s_lacunarity').addEventListener('input',  function() { g_lacunarity  = this.value / 10.0; });
     document.getElementById('s_layer0_freq').addEventListener('input', function() { g_layer0_freq = this.value / 1000.0; });
-    document.getElementById('s_layer0_amp').addEventListener('input',  function() { g_layer0_amp  = parseInt(this.value); });
-    document.getElementById('s_world_size').addEventListener('input',  function() { g_world_size  = parseInt(this.value); });
-    document.getElementById('s_world_divs').addEventListener('input',  function() { g_world_divs  = parseInt(this.value); });
-    document.getElementById('s_pine_count').addEventListener('input',  function() { g_pine_count  = parseInt(this.value); });
-    document.getElementById('s_fern_count').addEventListener('input',  function() { g_fern_count  = parseInt(this.value); });
-    document.getElementById('s_grass_count').addEventListener('input', function() { g_grass_count = parseInt(this.value); });
+    document.getElementById('s_layer0_amp').addEventListener('input',  function() { g_layer0_amp  = this.value; });
+    document.getElementById('s_world_size').addEventListener('input',  function() { g_world_size  = this.value; });
+    document.getElementById('s_world_divs').addEventListener('input',  function() { g_world_divs  = this.value; });
+    document.getElementById('s_pine_count').addEventListener('input',  function() { g_pine_count  = this.value; });
+    document.getElementById('s_fern_count').addEventListener('input',  function() { g_fern_count  = this.value; });
+    document.getElementById('s_grass_count').addEventListener('input', function() { g_grass_count = this.value; });
+    document.getElementById('s_sun_azimuth').addEventListener('input', function() { g_sun_azimuth = this.value; update_sun(); });
     document.getElementById('btn_regen').addEventListener('click', () => {
         const btn = document.getElementById('btn_regen');
         btn.textContent = 'Generating...';
@@ -347,9 +356,9 @@ function init_camera() {
     g_camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
     g_camera.position.set(g_camera_X, g_camera_Y, g_camera_Z);
 
-    g_gui.add(g_camera, 'fov', 1, 180);
-    g_gui.add(g_camera, 'near', .1, 50);
-    g_gui.add(g_camera, 'far', 1, 2000);
+    g_gui.add(g_camera, 'fov', 1, 180).onChange(() => g_camera.updateProjectionMatrix());
+    g_gui.add(g_camera, 'near', .1, 50).onChange(() => g_camera.updateProjectionMatrix());
+    g_gui.add(g_camera, 'far', 1, 2000).onChange(() => g_camera.updateProjectionMatrix());
 
     g_controls = new OrbitControls(g_camera, g_renderer.domElement);
     //controls.target.set(0,5,0); controls.update();
@@ -378,7 +387,7 @@ function create_scene() {
     }
 
     g_scene.add(g_sky);
-    g_scene.fog = new THREE.FogExp2(0xE08582, 0.001);
+    g_scene.fog = new THREE.FogExp2(0x6e5353, 0.0015);
 }
 
 function set_ground_texture_params(tex) {
@@ -438,9 +447,13 @@ function create_sky() {
     uniforms['mieCoefficient'].value   = 0.00004;
     uniforms['mieDirectionalG'].value  = 0.1;
 
+    update_sun();
+}
+
+function update_sun() {
     const sun_dir = new THREE.Vector3();
     sun_dir.setFromSphericalCoords(1, deg_to_rad(90 - g_sun_elevation), deg_to_rad(g_sun_azimuth));
-    uniforms['sunPosition'].value.copy(sun_dir);
+    g_sky.material.uniforms['sunPosition'].value.copy(sun_dir);
 
     // raises light angle above the visual sun - shorter shadows
     const light_dir = new THREE.Vector3();
@@ -452,9 +465,9 @@ function create_lights() {
     //https://github.com/mrdoob/three.js/blob/master/src/lights/LightShadow.js
     g_sun = new THREE.DirectionalLight(0xffffcc, .8);
     g_sun.castShadow = true;
-    g_sun.shadow.mapSize.width  = 2048;
-    g_sun.shadow.mapSize.height = 2048;
-    g_sun.shadow.normalBias = .14;
+    g_sun.shadow.mapSize.width  = 4096;
+    g_sun.shadow.mapSize.height = 4096;
+    g_sun.shadow.normalBias = .1;
     g_sun.shadow.camera.near = 10;
     g_sun.shadow.camera.far  = 120;
 
@@ -478,34 +491,23 @@ function animate(time) {
 
     const duration = time - g_prev_time;
     g_prev_time = time;
-    document.getElementById('p_performance').innerHTML =
+    performance_element.innerHTML =
         'fps: ' + Math.floor(1000 / duration) + '<br>ms: ' + Math.floor(duration);
 
     time *= 0.001;  // seconds
     
-    // https://github.com/mrdoob/three.js/blob/dev/examples/webgl_materials_modified.html
-    // line 149 => updating uniforms in injected shaders
-    g_scene.traverse( function ( child ) {
-
-        const leaves = g_childnames_leaves.includes(child.name);
-        const trunk = g_childnames_trunks.includes(child.name);
-        const grass = g_childnames_grass.includes(child.name);
-        const fern = g_childnames_fern.includes(child.name);
-
-        if ( child.isMesh && ( leaves || trunk || grass || fern )) {
-            // update the shader and the depth shader
-            if (child.material.userData.shader) update_uniforms(child.material.userData.shader, time, grass, fern, trunk || leaves);
-            if (child.userData.depthShader) update_uniforms(child.userData.depthShader, time, grass, fern, trunk || leaves);
-        }
-    });
+    // update wind shader uniforms only on cached wind-animated meshes (avoids full scene traverse each frame)
+    for (const entry of g_wind_mesh_list) {
+        const { mesh, grass, fern, tree } = entry;
+        if (mesh.material.userData.shader) update_uniforms(mesh.material.userData.shader, time, grass, fern, tree);
+        if (mesh.userData.depthShader) update_uniforms(mesh.userData.depthShader, time, grass, fern, tree);
+    }
 
     // pass time to built in water shaders
     g_water.material.uniforms['time'].value = time * 0.3;
 
-    update_camera_settings();
-
-    // trigger shadow update
-    g_renderer.shadowMap.needsUpdate = true;
+    // update shadows every other frame for performance
+    g_renderer.shadowMap.needsUpdate = (++g_frame % 2 === 0);
 
     g_renderer.render(g_scene, g_camera);
 

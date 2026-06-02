@@ -203,18 +203,18 @@
     <button id="btn_regen" class="generating" disabled>Generating...</button>
 
     <details class="settings">
-      <summary>World Generation Settings</summary>
+      <summary>Island Generation Settings</summary>
 
       <details class="settings">
-        <summary>World Dimensions</summary>
+        <summary>Island Dimensions</summary>
         <div class="slider-group">
           <div class="slider-item">
-            <label>World Size <span id="v_world_size">150</span></label>
+            <label>Island Size <span id="v_world_size">150</span></label>
             <input type="range" min="20" max="200" step="10" value="150" id="s_world_size"
                    oninput="document.getElementById('v_world_size').textContent = this.value">
           </div>
           <div class="slider-item">
-            <label>World Divisions <span id="v_world_divs">100</span></label>
+            <label>Island Divisions <span id="v_world_divs">100</span></label>
             <input type="range" min="10" max="200" step="10" value="100" id="s_world_divs"
                    oninput="document.getElementById('v_world_divs').textContent = this.value">
           </div>
@@ -279,6 +279,17 @@
         </div>
       </details>
 
+    </details>
+
+    <details class="settings">
+      <summary>Sun Settings</summary>
+      <div class="slider-group">
+        <div class="slider-item">
+          <label>Sun Direction <span id="v_sun_azimuth">180</span>°</label>
+          <input type="range" min="0" max="360" value="180" id="s_sun_azimuth"
+                 oninput="document.getElementById('v_sun_azimuth').textContent = this.value">
+        </div>
+      </div>
     </details>
 
     <details class="settings">
