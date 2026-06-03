@@ -296,7 +296,7 @@ function regenerate_world() {
 
 
 function create_water() {
-    const water_geo = new THREE.PlaneGeometry(2000, 2000);
+    const water_geo = new THREE.PlaneGeometry(2048, 2048);
 
     g_water = new Water(water_geo, {
         textureWidth:    512,
@@ -368,7 +368,7 @@ function init_renderer() {
     g_renderer = new THREE.WebGLRenderer({antialias: true, canvas: g_canvas});
     g_renderer.setSize(g_canvas.width, g_canvas.height);
     g_renderer.shadowMap.enabled = true;
-    g_renderer.shadowMap.type = THREE.PCFShadowMap;
+    g_renderer.shadowMap.type = THREE.BasicShadowMap;
     // synchronize shadowMap update to my render loop
     g_renderer.shadowMap.autoUpdate = false;
 }
