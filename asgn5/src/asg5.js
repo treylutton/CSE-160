@@ -406,7 +406,7 @@ function load_textures() {
     const ground_ao = set_ground_texture_params(loader.load('../resources/ground/textures/1K-ground_11_ambientocclusion.png'));
     const ground_bump = set_ground_texture_params(loader.load('../resources/ground/textures/1K-ground_11_height.png'));
     //const ground_met = set_ground_texture_params(loader.load('../resources/ground/textures/1K-ground_11_metallic.png'));
-    const ground_norm = set_ground_texture_params(loader.load('../resources/ground/textures/1k-ground_11_normal.png'));
+    const ground_norm = set_ground_texture_params(loader.load('../resources/ground/textures/1K-ground_11_normal.png'));
     //const ground_rough = set_ground_texture_params(loader.load('../resources/ground/textures/1k-ground_11_roughness.png'));
 
     ground_base.colorSpace = THREE.SRGBColorSpace;
