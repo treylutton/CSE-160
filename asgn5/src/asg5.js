@@ -111,19 +111,13 @@ function inject_wind_shaders(shader, project_vertex_chunk, grass) {
     shader.vertexShader = shader.vertexShader.replace(`#include <project_vertex>`, project_vertex_chunk);
 }
 
-// im using many trees by the same creator so this 
-// is a function that converts their models to my preferences (& sets position)
 function setup_glb_tree_model(glb, position) {
-    // set the model position (hardcoded in load_models)
     glb.position.copy(position);
 
     // traverses the glb object tree
-    // modifies certain fields and injects vertex shader code for wind sway
     glb.traverse(child => {
         if (child.isMesh) {
-            // get some insight into the different objects in the model (floods console with procedural generation)
             //console.log(child.name, child.material.map);
-            // disable transparency (May change this back, seems to make the tree .glb models look better)
             child.material.transarent = false;
 
             const leaves = g_childnames_leaves.has(child.name);
@@ -192,7 +186,7 @@ function generate_terrain() {
     // get the entire vertex position buffer
     const pos = ground_plane.attributes.position;
 
-    // for each vertex in the 
+    // for each vertex in the plane
     for (let i = 0; i < pos.count; i++) {
         // samples x and y positions to set z value
         // note that the plane geometry is created in XY plane
@@ -411,7 +405,6 @@ function load_textures() {
 
     ground_base.colorSpace = THREE.SRGBColorSpace;
 
-    // cartoon style lighting fits well with low-poly trees.
     g_mat_ground = new THREE.MeshToonMaterial({
         map:          ground_base,
         aoMap:        ground_ao,
