@@ -446,6 +446,9 @@ function create_sky() {
     uniforms['rayleigh'].value         = 2;
     uniforms['mieCoefficient'].value   = 0.00004;
     uniforms['mieDirectionalG'].value  = 0.1;
+    uniforms['cloudScale'].value       = 0.001;
+    uniforms['cloudSpeed'].value       = 0.001;
+    uniforms['cloudCoverage'].value    = 0.4;
 
     update_sun();
 }
@@ -503,8 +506,9 @@ function animate(time) {
         if (mesh.userData.depthShader) update_uniforms(mesh.userData.depthShader, time, grass, fern, tree);
     }
 
-    // pass time to built in water shaders
+    // pass time to built in water shaders and sky shaders
     g_water.material.uniforms['time'].value = time * 0.3;
+    g_sky.material.uniforms['time'].value = time * 0.05;
 
     // update shadows every other frame for performance
     g_renderer.shadowMap.needsUpdate = (++g_frame % 2 === 0);
